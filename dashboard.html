@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Weather Dashboard – OpenWeather + Windy Map (Day/Night)</title>
+  <meta name="description"
+    content="Weather dashboard with Windy animated map, OpenWeather APIs, and Chart.js. Search cities, geolocate, view animated weather layers, and see current, hourly, and 5-day forecasts. Includes Day/Night theme toggle." />
+
+  <link rel="stylesheet" href="style.css" />
+  <!-- html2canvas for share card -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <!-- Windy libBoot MUST be in <head> so windyInit() exists before script.js runs -->
+  <script src="https://api.windy.com/assets/map-forecast/libBoot.js"></script>
+  <!-- Leaflet (peer dep of Windy) -->
+  <script src="https://unpkg.com/leaflet@1.4.0/dist/leaflet.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.4.0/dist/leaflet.css" />
+  <script src="auth-check.js"></script>
+</head>
+
+<body>
+  <!-- Animated weather particles background -->
+  <canvas id="weatherParticles"></canvas>
+
+  <header>
+    <div class="wrap bar">
+      <div class="brand">
+        <span class="logo">⛅</span> <span>Weather Dashboard</span>
+      </div>
+      <div class="search-wrap">
+        <input id="q" type="text" placeholder="Search city (e.g., Bengaluru, London, New York)…" autocomplete="off" />
+        <div id="autocompleteDropdown" class="autocomplete-dropdown"></div>
+      </div>
+      <button id="btnSearch" class="btn">Search</button>
+      <button id="btnLocate" class="btn primary">📍 Locate</button>
+      <button id="btnFavorite" class="btn">🤍 Save</button>
+      <button id="btnShare" class="btn share-btn">📤 Share</button>
+      <button id="btnTheme" class="btn toggle" title="Toggle Day/Night" aria-pressed="false">🌙 Night</button>
+      <a id="adminPanelLink" href="/admin.html" class="btn" style="display:none;text-decoration:none;">⚙️ Admin</a>
+      <button onclick="logout()" class="btn">Logout</button>
+      <div class="live-indicator"><div class="live-dot"></div>LIVE</div>
+    </div>
+  </header>
+
+  <!-- Announcement Banner -->
+  <div id="announcementBanner" style="display:none;"></div>
+
+  <main>
+    <!-- Left Column: Map and News -->
+    <section class="left-column">
+      <!-- Map Section -->
+      <div class="card">
+        <div class="section">
+          <h3>Animated Weather Map</h3>
+          <div class="row" style="justify-content: space-between">
+            <div class="row">
+              <label>Weather Layer:</label>
+              <select id="windyLayer" class="select">
+                <option value="wind">Wind</option>
+                <option value="rain">Rain</option>
+                <option value="clouds">Clouds</option>
+                <option value="temp">Temperature</option>
+                <option value="pressure">Pressure</option>
+                <option value="waves">Waves</option>
+              </select>
+            </div>
+            <div class="row">
+              <label>Units</label>
+              <select id="units" class="select">
+                <option value="metric">Metric (°C, m/s)</option>
+                <option value="imperial">Imperial (°F, mph)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div style="position:relative;">
+          <div id="windy"></div>
+          <!-- Leaflet fallback map (shown when Windy fails to load) -->
+          <div id="leafletFallbackMap" style="display:none; width:100%; height:450px; border-radius:12px; overflow:hidden;"></div>
+        </div>
+        <div class="section note">
+          Animated weather map by Windy.com. Weather data by OpenWeather.
+        </div>
+      </div>
+
+      <!-- Astronomy Panel -->
+      <div class="card">
+        <div class="section">
+          <h3>🌙 Astronomy</h3>
+          <div class="astro-grid">
+            <div class="astro-moon-wrap">
+              <canvas id="moonCanvas" width="100" height="100"></canvas>
+              <div id="moonPhaseName" style="font-size:13px;color:var(--muted);margin-top:6px;text-align:center;">—</div>
+            </div>
+            <div class="astro-details">
+              <div class="astro-row"><span class="astro-label">🌅 Sunrise</span><span class="astro-value" id="astroSunrise">—</span></div>
+              <div class="astro-row"><span class="astro-label">🌇 Sunset</span><span class="astro-value" id="astroSunset">—</span></div>
+              <div class="astro-row"><span class="astro-label">🌟 Golden Hour (AM)</span><span class="astro-value" id="astroGoldenAM">—</span></div>
+              <div class="astro-row"><span class="astro-label">🌟 Golden Hour (PM)</span><span class="astro-value" id="astroGoldenPM">—</span></div>
+              <div class="astro-row"><span class="astro-label">💙 Blue Hour (AM)</span><span class="astro-value" id="astroBlueAM">—</span></div>
+              <div class="astro-row"><span class="astro-label">💙 Blue Hour (PM)</span><span class="astro-value" id="astroBluePM">—</span></div>
+              <div class="astro-row"><span class="astro-label">🌑 Moon Illumination</span><span class="astro-value" id="astroMoonIllum">—</span></div>
+              <div class="astro-row"><span class="astro-label">☀️ Day Length</span><span class="astro-value" id="astroDayLen">—</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ⏰ Custom Weather Alerts -->
+      <div class="card">
+        <div class="section">
+          <h3>⏰ Custom Weather Alerts</h3>
+          <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">Set thresholds — get a visual alert when any condition is breached for the current city.</p>
+          <div class="alert-form">
+            <div class="alert-form-row">
+              <label class="alert-form-label">🌡️ Max Temperature</label>
+              <div style="display:flex;gap:6px;align-items:center;">
+                <input type="number" id="alertMaxTemp" class="alert-input" placeholder="e.g. 40" />
+                <span style="color:var(--muted);font-size:13px;">°C / °F</span>
+              </div>
+            </div>
+            <div class="alert-form-row">
+              <label class="alert-form-label">🥶 Min Temperature</label>
+              <div style="display:flex;gap:6px;align-items:center;">
+                <input type="number" id="alertMinTemp" class="alert-input" placeholder="e.g. 5" />
+                <span style="color:var(--muted);font-size:13px;">°C / °F</span>
+              </div>
+            </div>
+            <div class="alert-form-row">
+              <label class="alert-form-label">💨 Max Wind Speed</label>
+              <div style="display:flex;gap:6px;align-items:center;">
+                <input type="number" id="alertMaxWind" class="alert-input" placeholder="e.g. 50" />
+                <span style="color:var(--muted);font-size:13px;">km/h</span>
+              </div>
+            </div>
+            <div class="alert-form-row">
+              <label class="alert-form-label">💧 Max Humidity</label>
+              <div style="display:flex;gap:6px;align-items:center;">
+                <input type="number" id="alertMaxHum" class="alert-input" placeholder="e.g. 90" />
+                <span style="color:var(--muted);font-size:13px;">%</span>
+              </div>
+            </div>
+            <div class="alert-form-row">
+              <label class="alert-form-label">🌫️ Max AQI</label>
+              <div style="display:flex;gap:6px;align-items:center;">
+                <input type="number" id="alertMaxAqi" class="alert-input" placeholder="1–5" min="1" max="5" />
+                <span style="color:var(--muted);font-size:13px;">1=Good 5=Bad</span>
+              </div>
+            </div>
+            <button class="btn primary" onclick="saveAlerts()" style="width:100%;margin-top:8px;">💾 Save Alerts</button>
+          </div>
+          <div id="alertsTriggered" style="margin-top:14px;"></div>
+        </div>
+      </div>
+
+      <!-- 📍 Multi-City Tracker -->
+      <div class="card">
+        <div class="section">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+            <h3>📍 Multi-City Tracker</h3>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <input id="trackCityInput" class="alert-input" placeholder="Add city…" style="width:140px;" />
+              <button class="btn primary" onclick="addTrackedCity()">+ Add</button>
+              <button class="btn" onclick="refreshTrackedCities()">🔄 Refresh All</button>
+            </div>
+          </div>
+          <div id="trackedCitiesGrid" class="tracked-cities-grid">
+            <div style="color:var(--muted);font-size:13px;padding:20px;text-align:center;">Add cities above to track them here ✨</div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- Right Column: Current + details -->
+    <section class="grid">
+      <div class="card">
+        <div class="section current">
+          <div style="font-size: 32px" id="wIcon">☁️</div>
+          <div>
+            <div class="city" id="city">—</div>
+            <div class="desc" id="desc">
+              Search a city or use your location.
+            </div>
+          </div>
+          <div class="temp" id="temp">—</div>
+        </div>
+        <div class="section stats">
+          <div class="stat">
+            <div class="k">Feels like</div>
+            <div class="v" id="feels">—</div>
+          </div>
+          <div class="stat">
+            <div class="k">Humidity</div>
+            <div class="v" id="hum">—</div>
+          </div>
+          <div class="stat">
+            <div class="k">Wind</div>
+            <div class="v" id="wind">—</div>
+          </div>
+          <div class="stat">
+            <div class="k">Pressure</div>
+            <div class="v" id="press">—</div>
+          </div>
+          <div class="stat">
+            <div class="k">Visibility</div>
+            <div class="v" id="vis">—</div>
+          </div>
+          <div class="stat">
+            <div class="k">Sunrise / Sunset</div>
+            <div class="v" id="sun">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section">
+          <h3>Air Quality</h3>
+          <div class="row" style="justify-content: space-between; align-items: center">
+            <div id="aqiBadge" class="btn" style="font-weight: 700">
+              AQI —
+            </div>
+            <div class="note">1=Good · 5=Very Poor</div>
+          </div>
+          <div class="stats" style="margin-top: 10px">
+            <div class="stat">
+              <div class="k">PM2.5</div>
+              <div class="v" id="pm25">—</div>
+            </div>
+            <div class="stat">
+              <div class="k">PM10</div>
+              <div class="v" id="pm10">—</div>
+            </div>
+            <div class="stat">
+              <div class="k">NO₂</div>
+              <div class="v" id="no2">—</div>
+            </div>
+            <div class="stat">
+              <div class="k">O₃</div>
+              <div class="v" id="o3">—</div>
+            </div>
+            <div class="stat">
+              <div class="k">SO₂</div>
+              <div class="v" id="so2">—</div>
+            </div>
+            <div class="stat">
+              <div class="k">CO</div>
+              <div class="v" id="co">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section">
+          <h3>Hourly (next 24h)</h3>
+          <canvas id="hourlyChart"></canvas>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section">
+          <h3>5-Day Forecast</h3>
+          <div id="forecast" class="forecast"></div>
+        </div>
+      </div>
+
+      <!-- ☀️ UV Index -->
+      <div class="card">
+        <div class="section">
+          <h3>☀️ UV Index</h3>
+          <div class="uv-label" id="uvValue">—</div>
+          <div class="uv-category" id="uvCategory" style="color:var(--muted)">Loading...</div>
+          <div class="uv-bar-wrap">
+            <div class="uv-pointer" id="uvPointer" style="left:0%"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:6px;">
+            <span>Low</span><span>Moderate</span><span>High</span><span>V.High</span><span>Extreme</span>
+          </div>
+          <div id="uvAdvice" style="margin-top:10px;font-size:13px;color:var(--muted);line-height:1.5;"></div>
+        </div>
+      </div>
+
+      <!-- 🧭 Wind Compass -->
+      <div class="card">
+        <div class="section">
+          <h3>🧭 Wind Compass</h3>
+          <div class="compass-wrap">
+            <div class="compass">
+              <div class="compass-ring"></div>
+              <div class="compass-dir n">N</div>
+              <div class="compass-dir s">S</div>
+              <div class="compass-dir e">E</div>
+              <div class="compass-dir w">W</div>
+              <div class="compass-arrow" id="compassArrow" style="transform:translateX(-50%) rotate(0deg)"></div>
+              <div class="compass-center-dot"></div>
+            </div>
+            <div class="compass-stats">
+              <div class="compass-stat-row">
+                <span class="compass-stat-label">Direction</span>
+                <span class="compass-stat-value" id="windDirText">—</span>
+              </div>
+              <div class="compass-stat-row">
+                <span class="compass-stat-label">Speed</span>
+                <span class="compass-stat-value" id="windSpeedText">—</span>
+              </div>
+              <div class="compass-stat-row">
+                <span class="compass-stat-label">Gust</span>
+                <span class="compass-stat-value" id="windGustText">—</span>
+              </div>
+              <div class="compass-stat-row">
+                <span class="compass-stat-label">Beaufort</span>
+                <span class="compass-stat-value" id="windBeaufort">—</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════
+           🌧️  PRECIPITATION & RAIN PROBABILITY CHART
+           ══════════════════════════════════════════════ -->
+      <div class="card">
+        <div class="section">
+          <h3>🌧️ Precipitation & Rain Probability</h3>
+          <div style="display:flex;gap:8px;margin-bottom:12px;">
+            <button class="btn active-tab-btn" id="precipTabBar" onclick="switchPrecipTab('bar')">💧 Amount</button>
+            <button class="btn" id="precipTabLine" onclick="switchPrecipTab('line')">📈 Probability</button>
+          </div>
+          <canvas id="precipChart" height="120"></canvas>
+          <div id="precipSummary" style="margin-top:10px;font-size:13px;color:var(--muted);line-height:1.6;"></div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════
+           🌊  SWELL / CONDITIONS CARD
+           ══════════════════════════════════════════════ -->
+      <!-- 🌊 Marine & Outdoor Conditions -->
+      <div class="card">
+        <div class="section">
+          <h3>🌊 Marine & Outdoor Conditions</h3>
+          <div class="swell-grid" id="swellGrid">
+            <div class="swell-item"><div class="swell-icon">💨</div><div class="swell-label">Wind Beaufort</div><div class="swell-value" id="swellBeaufort">—</div></div>
+            <div class="swell-item"><div class="swell-icon">🌡️</div><div class="swell-label">Dew Point</div><div class="swell-value" id="swellDewPoint">—</div></div>
+            <div class="swell-item"><div class="swell-icon">🏃</div><div class="swell-label">Running Index</div><div class="swell-value" id="swellRunIdx">—</div></div>
+            <div class="swell-item"><div class="swell-icon">🚴</div><div class="swell-label">Cycling Index</div><div class="swell-value" id="swellCycleIdx">—</div></div>
+            <div class="swell-item"><div class="swell-icon">🧺</div><div class="swell-label">Laundry Score</div><div class="swell-value" id="swellLaundry">—</div></div>
+            <div class="swell-item"><div class="swell-icon">☂️</div><div class="swell-label">Umbrella Needed</div><div class="swell-value" id="swellUmbrella">—</div></div>
+          </div>
+          <div id="swellAdvice" style="margin-top:12px;font-size:13px;color:var(--muted);padding:10px;background:var(--bg);border-radius:10px;line-height:1.6;"></div>
+        </div>
+      </div>
+
+
+    </section>
+  </main>
+
+
+  <!-- NEWS SECTION - FULL WIDTH BELOW MAIN GRID -->
+  <section class="news-section" id="newsSection">
+    <div class="wrap">
+      <div class="card">
+        <div class="section news-section-inner">
+          <div class="news-section-header">
+            <h3>📰 Latest News</h3>
+            <div class="news-section-meta" id="newsCityLabel"></div>
+          </div>
+          <div id="newsContainer" class="news-container news-container-grid">
+            <div class="news-loading">Search a city to load the latest news…</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CITY INFORMATION SECTION - FULL WIDTH AT BOTTOM -->
+  <section class="city-info-section" id="cityInfoSection" style="display: none;">
+    <div class="wrap">
+      <div class="card">
+        <div class="section">
+          <div class="city-info-header">
+            <h2 id="cityInfoTitle">🏙️ About <span id="cityInfoName">—</span></h2>
+            <button id="closeCityInfo" class="btn" title="Close">✕</button>
+          </div>
+        </div>
+
+        <!-- City Overview -->
+        <div class="section city-info-grid">
+          <!-- Basic Info Card -->
+          <div class="info-card">
+            <h3>📍 Basic Information</h3>
+            <div class="info-items">
+              <div class="info-item">
+                <span class="info-label">Country:</span>
+                <span class="info-value" id="infoCountry">—</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Population:</span>
+                <span class="info-value" id="infoPopulation">—</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Coordinates:</span>
+                <span class="info-value" id="infoCoords">—</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Elevation:</span>
+                <span class="info-value" id="infoElevation">—</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Local Time:</span>
+                <span class="info-value" id="infoLocalTime">—</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Timezone:</span>
+                <span class="info-value" id="infoTimezone">—</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Travel Info Card -->
+          <div class="info-card">
+            <h3>✈️ Travel Information</h3>
+            <div class="info-items">
+              <div class="info-item">
+                <span class="info-label">Currency:</span>
+                <span class="info-value" id="infoCurrency">—</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Language:</span>
+                <span class="info-value" id="infoLanguage">—</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Capital:</span>
+                <span class="info-value" id="infoCapital">—</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Region:</span>
+                <span class="info-value" id="infoRegion">—</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Calling Code:</span>
+                <span class="info-value" id="infoCallingCode">—</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Domain:</span>
+                <span class="info-value" id="infoDomain">—</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Climate Info Card -->
+          <div class="info-card">
+            <h3>🌡️ Climate Zone</h3>
+            <div class="info-items">
+              <div class="info-item">
+                <span class="info-label">Climate Type:</span>
+                <span class="info-value" id="infoClimate">—</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Best Time to Visit:</span>
+                <span class="info-value" id="infoBestTime">—</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Avg. Temperature:</span>
+                <span class="info-value" id="infoAvgTemp">—</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tourist Attractions -->
+        <div class="section">
+          <h3>🎯 Popular Attractions <span class="ai-badge">✨ AI-Powered</span></h3>
+          <div id="attractionsContainer" class="attractions-grid">
+            <div class="attraction-loading">Loading attractions...</div>
+          </div>
+        </div>
+
+        <!-- Fun Facts -->
+        <div class="section">
+          <h3>💡 Did You Know?</h3>
+          <div id="funFactsContainer" class="fun-facts">
+            <div class="fun-fact-loading">Loading interesting facts...</div>
+          </div>
+        </div>
+
+        <!-- City Images -->
+        <div class="section">
+          <h3>📸 City Gallery</h3>
+          <div id="cityGallery" class="city-gallery">
+            <div class="gallery-loading">Loading images...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- WEATHER ALERTS TOAST CONTAINER -->
+  <div id="alertsContainer" class="alerts-container"></div>
+
+  <!-- ALERT SETTINGS PANEL -->
+  <div id="alertSettingsPanel" class="alert-settings-panel" style="display:none;">
+    <div class="alert-settings-header">
+      <h3>🔔 Alert Settings</h3>
+      <button id="closeAlertSettings" class="btn">✕</button>
+    </div>
+    <div class="alert-settings-body">
+      <p class="alert-settings-desc">Get notified when weather conditions are dangerous or noteworthy.</p>
+      <div class="alert-toggle-row">
+        <div>
+          <div class="alert-toggle-label">🌡️ Extreme Temperature</div>
+          <div class="alert-toggle-sub">Alert above 40°C / below 0°C</div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="alertTemp" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="alert-toggle-row">
+        <div>
+          <div class="alert-toggle-label">💨 High Wind Speed</div>
+          <div class="alert-toggle-sub">Alert above 50 km/h</div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="alertWind" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="alert-toggle-row">
+        <div>
+          <div class="alert-toggle-label">😷 Poor Air Quality</div>
+          <div class="alert-toggle-sub">Alert when AQI ≥ 4 (Poor)</div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="alertAQI" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="alert-toggle-row">
+        <div>
+          <div class="alert-toggle-label">⛈️ Storm / Heavy Rain</div>
+          <div class="alert-toggle-sub">Alert on thunderstorm or heavy rain</div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="alertStorm" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="alert-push-row">
+        <div>
+          <div class="alert-toggle-label">📱 Browser Push Notifications</div>
+          <div class="alert-toggle-sub" id="pushStatusText">Click to enable</div>
+        </div>
+        <button id="btnEnablePush" class="btn primary">Enable</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══ FAVORITES + HISTORY + USAGE PANEL ═══ -->
+  <section class="panel-section" id="extraPanelSection">
+    <div class="wrap">
+      <div class="card">
+        <!-- Tabs -->
+        <div class="panel-tabs">
+          <button class="panel-tab active" id="tabFavorites" data-target="paneFavorites">❤️ Saved Cities</button>
+          <button class="panel-tab" id="tabHistory" data-target="paneHistory">📈 History</button>
+          <button class="panel-tab" id="tabCompare" data-target="paneCompare">⚖️ Compare</button>
+          <button class="panel-tab" id="tabUsage" data-target="paneUsage">📊 API Usage</button>
+        </div>
+
+        <!-- Favorites pane -->
+        <div class="panel-pane active" id="paneFavorites">
+          <div class="section">
+            <h3>❤️ Your Saved Cities</h3>
+            <p class="panel-desc">Save cities to quickly reload them anytime. Click Load to jump to a city.</p>
+            <div id="favoritesListContainer">
+              <div class="fav-empty">Loading...</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- History pane -->
+        <div class="panel-pane" id="paneHistory" style="display:none;">
+          <div class="section">
+            <h3>📈 Weather History for <span id="historyChartCity">current city</span></h3>
+            <p class="panel-desc">Temperature &amp; humidity trend from your past searches (up to 14 data points).</p>
+            <div id="historyChartContainer" style="position:relative; min-height:200px;">
+              <canvas id="historyChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Compare pane (NEW) -->
+        <div class="panel-pane compare-section" id="paneCompare" style="display:none;">
+          <div class="section">
+            <div class="compare-header">
+              <h3>⚖️ Compare Two Cities</h3>
+            </div>
+            <div class="compare-input-row">
+              <input type="text" id="compareCity1" placeholder="City 1 (e.g., London)" />
+              <input type="text" id="compareCity2" placeholder="City 2 (e.g., New York)" />
+              <button class="btn primary" id="btnCompare">Compare</button>
+            </div>
+            <div class="compare-grid" id="compareGrid">
+              <div class="compare-placeholder">Enter two cities above to compare their weather side by side.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Usage pane -->
+        <div class="panel-pane" id="paneUsage" style="display:none;">
+          <div class="section">
+            <h3>📊 Your API Usage</h3>
+            <p class="panel-desc">Track how many weather API calls you've made through the dashboard.</p>
+            <div id="usageStatsContainer">
+              <div class="usage-loading">Loading...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- AI WEATHER CHATBOT SECTION -->
+  <section class="chatbot-section" id="chatbotSection">
+    <div class="wrap">
+      <div class="card">
+        <div class="section">
+          <div class="chatbot-header">
+            <div class="chatbot-title">
+              <span class="chatbot-icon">🤖</span>
+              <div>
+                <h3>AI Weather Assistant</h3>
+                <p class="chatbot-subtitle">Ask me anything about weather, forecasts, or <span id="chatCityName">your location</span></p>
+              </div>
+            </div>
+            <div class="chatbot-header-actions">
+              <button id="btnAlertSettings" class="btn" title="Alert Settings">🔔 Alerts</button>
+              <button id="btnClearChat" class="btn" title="Clear chat">🗑️ Clear</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="chatMessages" class="chat-messages">
+          <div class="chat-message assistant">
+            <div class="chat-avatar">🤖</div>
+            <div class="chat-bubble">
+              <p>Hi! I'm your AI weather assistant. Search for any city to get started, then ask me anything — like "Is it safe to go hiking today?" or "What should I wear?" or "Will it rain this week?"</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="chat-suggestions" id="chatSuggestions">
+          <button class="suggestion-chip" data-msg="What's the weather like today?">What's the weather like today?</button>
+          <button class="suggestion-chip" data-msg="Should I carry an umbrella?">Should I carry an umbrella?</button>
+          <button class="suggestion-chip" data-msg="What should I wear today?">What should I wear today?</button>
+          <button class="suggestion-chip" data-msg="Is it a good day for outdoor activities?">Good day for outdoor activities?</button>
+        </div>
+
+        <div class="chat-input-area">
+          <input type="text" id="chatInput" class="chat-input" placeholder="Ask about weather, activities, travel tips…" />
+          <button id="btnChatSend" class="btn primary chat-send-btn">Send ↑</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ABOUT US SECTION -->
+  <section class="about-section" id="aboutSection">
+    <div class="wrap">
+
+      <!-- Header -->
+      <div class="about-header">
+        <div class="about-header-badge">⛅ Weather Dashboard</div>
+        <h2 class="about-title">About Us</h2>
+        <p class="about-subtitle">Your trusted companion for real-time weather, air quality, and smart forecasts — powered by AI and live data.</p>
+      </div>
+
+      <!-- Feature Cards Row -->
+      <div class="about-features">
+        <div class="about-feature-card">
+          <div class="about-feature-icon">🌍</div>
+          <h4>Global Coverage</h4>
+          <p>Search any city worldwide and get live weather data, forecasts, and local insights instantly.</p>
+        </div>
+        <div class="about-feature-card">
+          <div class="about-feature-icon">🤖</div>
+          <h4>AI-Powered</h4>
+          <p>Our built-in AI assistant answers your weather questions, suggests what to wear, and plans your day.</p>
+        </div>
+        <div class="about-feature-card">
+          <div class="about-feature-icon">🔔</div>
+          <h4>Smart Alerts</h4>
+          <p>Get instant alerts for extreme heat, high winds, storms, and poor air quality — before it's too late.</p>
+        </div>
+        <div class="about-feature-card">
+          <div class="about-feature-icon">🗺️</div>
+          <h4>Live Weather Map</h4>
+          <p>Animated maps show wind, rain, clouds, temperature, and pressure layers in real time.</p>
+        </div>
+      </div>
+
+      <!-- Main Contact + About Grid -->
+      <div class="about-main-grid">
+
+        <!-- About the Developer -->
+        <div class="about-dev-card">
+          <div class="about-dev-avatar">SR</div>
+          <div class="about-dev-info">
+            <div class="about-dev-name">Saksham Raj</div>
+            <div class="about-dev-role">Full Stack Developer &amp; Creator</div>
+            <p class="about-dev-bio">
+              Passionate about building useful, beautiful, and intelligent web applications.
+              Weather Dashboard was built from scratch using Node.js, Express, OpenWeather API,
+              and Weather AI API — with a focus on real-world utility and clean design.
+            </p>
+            <div class="about-dev-tags">
+              <span class="about-tag">Node.js</span>
+              <span class="about-tag">Express</span>
+              <span class="about-tag">OpenWeather API</span>
+              <span class="about-tag">Weather AI API</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Contact Card -->
+        <div class="about-contact-card">
+          <h3 class="about-contact-title">📬 Get In Touch</h3>
+          <p class="about-contact-subtitle">Have feedback, questions, or just want to say hi? Reach out anytime.</p>
+
+          <div class="about-contact-items">
+
+            <a href="tel:+916204368185" class="about-contact-item">
+              <div class="about-contact-icon phone">📞</div>
+              <div class="about-contact-detail">
+                <div class="about-contact-label">Phone</div>
+                <div class="about-contact-value">+91 6204368185</div>
+              </div>
+              <div class="about-contact-arrow">→</div>
+            </a>
+
+            <a href="https://wa.me/918797381934" target="_blank" rel="noopener" class="about-contact-item">
+              <div class="about-contact-icon whatsapp">💬</div>
+              <div class="about-contact-detail">
+                <div class="about-contact-label">WhatsApp</div>
+                <div class="about-contact-value">+91 8797381934</div>
+              </div>
+              <div class="about-contact-arrow">→</div>
+            </a>
+
+            <a href="/cdn-cgi/l/email-protection#81eaf4ece0f3f2e0eaf2e9e0ecb8b5b9c1e6ece0e8edafe2eeec" class="about-contact-item">
+              <div class="about-contact-icon email">✉️</div>
+              <div class="about-contact-detail">
+                <div class="about-contact-label">Email</div>
+                <div class="about-contact-value"><span class="__cf_email__" data-cfemail="0f647a626e7d7c6e647c676e62363b374f68626e6663216c6062">[email&#160;protected]</span></div>
+              </div>
+              <div class="about-contact-arrow">→</div>
+            </a>
+
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Footer strip -->
+      <div class="about-footer-strip">
+        <span>Built with ❤️ by Saksham Raj</span>
+        <span class="about-footer-dot">·</span>
+        <span>Powered by OpenWeather</span>
+        <span class="about-footer-dot">·</span>
+        <span>© 2026 Weather Dashboard</span>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══ SHARE WEATHER CARD MODAL ═══ -->
+  <div id="sharePreviewModal">
+    <div class="share-modal-box">
+      <div class="share-modal-title">📤 Share Weather Card</div>
+      <div class="share-card-preview" id="shareCardPreview">
+        <div class="share-card-emoji" id="shareEmoji">⛅</div>
+        <div class="share-card-city" id="shareCity">—</div>
+        <div class="share-card-temp" id="shareTemp">—</div>
+        <div class="share-card-desc" id="shareDesc">—</div>
+        <div class="share-card-stats">
+          <div class="share-card-stat">
+            <div class="share-card-stat-val" id="shareHum">—</div>
+            <div class="share-card-stat-label">Humidity</div>
+          </div>
+          <div class="share-card-stat">
+            <div class="share-card-stat-val" id="shareWind">—</div>
+            <div class="share-card-stat-label">Wind</div>
+          </div>
+          <div class="share-card-stat">
+            <div class="share-card-stat-val" id="shareFeels">—</div>
+            <div class="share-card-stat-label">Feels Like</div>
+          </div>
+        </div>
+        <div class="share-card-brand">Weather Dashboard · Powered by OpenWeather</div>
+      </div>
+      <div class="share-actions">
+        <button class="btn primary" id="btnDownloadCard">⬇️ Download</button>
+        <button class="btn" id="btnCopyShareText">📋 Copy Text</button>
+        <button class="btn" id="btnCloseShare">✕ Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ KEYBOARD SHORTCUTS PANEL ═══ -->
+  <div class="shortcuts-panel" id="shortcutsPanel">
+    <div class="shortcuts-title">
+      <span>⌨️ Keyboard Shortcuts</span>
+      <button onclick="document.getElementById('shortcutsPanel').classList.remove('open')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;">✕</button>
+    </div>
+    <div class="shortcut-row">
+      <span class="shortcut-label">Focus search</span>
+      <span class="shortcut-key"><span class="kbd">/</span></span>
+    </div>
+    <div class="shortcut-row">
+      <span class="shortcut-label">Search city</span>
+      <span class="shortcut-key"><span class="kbd">Enter</span></span>
+    </div>
+    <div class="shortcut-row">
+      <span class="shortcut-label">My location</span>
+      <span class="shortcut-key"><span class="kbd">Ctrl</span><span class="kbd">L</span></span>
+    </div>
+    <div class="shortcut-row">
+      <span class="shortcut-label">Toggle theme</span>
+      <span class="shortcut-key"><span class="kbd">Ctrl</span><span class="kbd">D</span></span>
+    </div>
+    <div class="shortcut-row">
+      <span class="shortcut-label">Save city</span>
+      <span class="shortcut-key"><span class="kbd">Ctrl</span><span class="kbd">S</span></span>
+    </div>
+    <div class="shortcut-row">
+      <span class="shortcut-label">Share card</span>
+      <span class="shortcut-key"><span class="kbd">Ctrl</span><span class="kbd">E</span></span>
+    </div>
+    <div class="shortcut-row">
+      <span class="shortcut-label">Refresh data</span>
+      <span class="shortcut-key"><span class="kbd">R</span></span>
+    </div>
+    <div class="shortcut-row">
+      <span class="shortcut-label">Shortcuts help</span>
+      <span class="shortcut-key"><span class="kbd">?</span></span>
+    </div>
+  </div>
+
+  <!-- ═══ FLOATING ACTION BUTTONS ═══ -->
+  <div class="fab-group">
+    <button class="fab secondary-fab" id="fabShortcuts" title="Keyboard Shortcuts">
+      ⌨️
+      <span class="fab-tooltip">Shortcuts</span>
+    </button>
+    <button class="fab secondary-fab" id="fabScrollTop" title="Scroll to top">
+      ↑
+      <span class="fab-tooltip">Back to top</span>
+    </button>
+  </div>
+
+  <!-- Puter AI — loaded here so it doesn't block head rendering -->
+  <script src="https://js.puter.com/v2/"></script>
+  <!-- Windy map API -->
+  <script src="https://api.windy.com/assets/map-forecast/libBoot.js"></script>
+  <!-- Main app script -->
+  <script defer src="script.js"></script>
+
+  <script>
+    // Panel tab switching
+    document.querySelectorAll('.panel-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.panel-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.panel-pane').forEach(p => p.style.display = 'none');
+        tab.classList.add('active');
+        document.getElementById(tab.dataset.target).style.display = 'block';
+      });
+    });
+  </script>
+</body>
+</html>
+

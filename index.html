@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Weather Dashboard – OpenWeather + Windy Map (Day/Night)</title>
+  <meta name="description"
+    content="Weather dashboard with Windy animated map, OpenWeather APIs, and Chart.js. Search cities, geolocate, view animated weather layers, and see current, hourly, and 5-day forecasts. Includes Day/Night theme toggle." />
+
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="auth-check.js"></script>
+  <script src="https://unpkg.com/leaflet@1.4.0/dist/leaflet.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.4.0/dist/leaflet.css" />
+</head>
+
+<body>
+  <header>
+    <div class="wrap bar">
+      <div class="brand">
+        <span class="logo">⛅</span> <span>Weather Dashboard</span>
+      </div>
+      <input id="q" type="text" placeholder="Search city (e.g., Bengaluru, London, New York)…" />
+      <button id="btnSearch" class="btn">Search</button>
+      <button id="btnLocate" class="btn primary">Use my location</button>
+      <button id="btnTheme" class="btn toggle" title="Toggle Day/Night" aria-pressed="false">
+        🌙 Night
+      </button>
+      <button onclick="logout()" class="btn">Logout</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="left-column">
+      <div class="card">
+        <div class="section">
+          <h3>Animated Weather Map (Windy)</h3>
+          <div class="row" style="justify-content: space-between">
+            <div class="row">
+              <label>Weather Layer:</label>
+              <select id="windyLayer" class="select">
+                <option value="wind">Wind</option>
+                <option value="rain">Rain</option>
+                <option value="clouds">Clouds</option>
+                <option value="temp">Temperature</option>
+                <option value="pressure">Pressure</option>
+                <option value="waves">Waves</option>
+              </select>
+            </div>
+            <div class="row">
+              <label>Units</label>
+              <select id="units" class="select">
+                <option value="metric">Metric (°C, m/s)</option>
+                <option value="imperial">Imperial (°F, mph)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div id="windy"></div>
+        <div class="section note">
+          Animated weather map by Windy.com. Weather data by OpenWeather.
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section">
+          <h3>📰 Latest News</h3>
+          <div id="newsContainer" class="news-container">
+            <div class="news-loading">Loading news...</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="card">
+        <div class="section current">
+          <div style="font-size: 32px" id="wIcon">☁️</div>
+          <div>
+            <div class="city" id="city">—</div>
+            <div class="desc" id="desc">
+              Search a city or use your location.
+            </div>
+          </div>
+          <div class="temp" id="temp">—</div>
+        </div>
+        <div class="section stats">
+          <div class="stat">
+            <div class="k">Feels like</div>
+            <div class="v" id="feels">—</div>
+          </div>
+          <div class="stat">
+            <div class="k">Humidity</div>
+            <div class="v" id="hum">—</div>
+          </div>
+          <div class="stat">
+            <div class="k">Wind</div>
+            <div class="v" id="wind">—</div>
+          </div>
+          <div class="stat">
+            <div class="k">Pressure</div>
+            <div class="v" id="press">—</div>
+          </div>
+          <div class="stat">
+            <div class="k">Visibility</div>
+            <div class="v" id="vis">—</div>
+          </div>
+          <div class="stat">
+            <div class="k">Sunrise / Sunset</div>
+            <div class="v" id="sun">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section">
+          <h3>Air Quality</h3>
+          <div class="row" style="justify-content: space-between; align-items: center">
+            <div id="aqiBadge" class="btn" style="font-weight: 700">
+              AQI —
+            </div>
+            <div class="note">1=Good · 5=Very Poor</div>
+          </div>
+          <div class="stats" style="margin-top: 10px">
+            <div class="stat">
+              <div class="k">PM2.5</div>
+              <div class="v" id="pm25">—</div>
+            </div>
+            <div class="stat">
+              <div class="k">PM10</div>
+              <div class="v" id="pm10">—</div>
+            </div>
+            <div class="stat">
+              <div class="k">NO₂</div>
+              <div class="v" id="no2">—</div>
+            </div>
+            <div class="stat">
+              <div class="k">O₃</div>
+              <div class="v" id="o3">—</div>
+            </div>
+            <div class="stat">
+              <div class="k">SO₂</div>
+              <div class="v" id="so2">—</div>
+            </div>
+            <div class="stat">
+              <div class="k">CO</div>
+              <div class="v" id="co">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section">
+          <h3>Hourly (next 24h)</h3>
+          <canvas id="hourlyChart"></canvas>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section">
+          <h3>5-Day Forecast</h3>
+          <div id="forecast" class="forecast"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <section class="city-info-section" id="cityInfoSection" style="display: none;">
+    <div class="wrap">
+      <div class="card">
+        <div class="section">
+          <div class="city-info-header">
+            <h2 id="cityInfoTitle">🏙️ About <span id="cityInfoName">—</span></h2>
+            <button id="closeCityInfo" class="btn" title="Close">✕</button>
+          </div>
+        </div>
+
+        <div class="section city-info-grid">
+          <div class="info-card">
+            <h3>📍 Basic Information</h3>
+            <div class="info-items">
+              <div class="info-item"><span class="info-label">Country:</span><span class="info-value" id="infoCountry">—</span></div>
+              <div class="info-item"><span class="info-label">Population:</span><span class="info-value" id="infoPopulation">—</span></div>
+              <div class="info-item"><span class="info-label">Coordinates:</span><span class="info-value" id="infoCoords">—</span></div>
+              <div class="info-item"><span class="info-label">Elevation:</span><span class="info-value" id="infoElevation">—</span></div>
+              <div class="info-item"><span class="info-label">Local Time:</span><span class="info-value" id="infoLocalTime">—</span></div>
+              <div class="info-item"><span class="info-label">Timezone:</span><span class="info-value" id="infoTimezone">—</span></div>
+            </div>
+          </div>
+
+          <div class="info-card">
+            <h3>✈️ Travel Information</h3>
+            <div class="info-items">
+              <div class="info-item"><span class="info-label">Currency:</span><span class="info-value" id="infoCurrency">—</span></div>
+              <div class="info-item"><span class="info-label">Language:</span><span class="info-value" id="infoLanguage">—</span></div>
+              <div class="info-item"><span class="info-label">Capital:</span><span class="info-value" id="infoCapital">—</span></div>
+              <div class="info-item"><span class="info-label">Region:</span><span class="info-value" id="infoRegion">—</span></div>
+              <div class="info-item"><span class="info-label">Calling Code:</span><span class="info-value" id="infoCallingCode">—</span></div>
+              <div class="info-item"><span class="info-label">Domain:</span><span class="info-value" id="infoDomain">—</span></div>
+            </div>
+          </div>
+
+          <div class="info-card">
+            <h3>🌡️ Climate Zone</h3>
+            <div class="info-items">
+              <div class="info-item"><span class="info-label">Climate Type:</span><span class="info-value" id="infoClimate">—</span></div>
+              <div class="info-item"><span class="info-label">Best Time to Visit:</span><span class="info-value" id="infoBestTime">—</span></div>
+              <div class="info-item"><span class="info-label">Avg. Temperature:</span><span class="info-value" id="infoAvgTemp">—</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h3>🎯 Popular Attractions <span class="ai-badge">✨ AI-Powered</span></h3>
+          <div id="attractionsContainer" class="attractions-grid">
+            <div class="attraction-loading">Loading attractions...</div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h3>💡 Did You Know?</h3>
+          <div id="funFactsContainer" class="fun-facts">
+            <div class="fun-fact-loading">Loading interesting facts...</div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h3>📸 City Gallery</h3>
+          <div id="cityGallery" class="city-gallery">
+            <div class="gallery-loading">Loading images...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script src="https://js.puter.com/v2/"></script>
+  <script src="https://api.windy.com/assets/map-forecast/libBoot.js"></script>
+  <script defer src="script.js"></script>
+</body>
+
+</html>

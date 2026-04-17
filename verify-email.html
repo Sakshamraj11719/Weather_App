@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Weather Dashboard - Verify Email</title>
+  <style>
+    :root {
+      --bg: #0f172a; --bg-grad1: #0ea5e920; --bg-grad2: #22d3ee22;
+      --card: #0b1220; --text: #e5e7eb; --muted: #9ca3af;
+      --accent: #22d3ee; --accent-2: #60a5fa; --border: #1f2937;
+      --error: #ef4444; --success: #10b981;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+      background: radial-gradient(1200px 600px at 80% -10%, var(--bg-grad1), transparent 60%),
+                  radial-gradient(1000px 600px at -10% 110%, var(--bg-grad2), transparent 60%),
+                  var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex; align-items: center; justify-content: center; padding: 20px;
+    }
+    .container { width: 100%; max-width: 440px; }
+    .logo { text-align: center; margin-bottom: 32px; }
+    .logo-icon {
+      width: 80px; height: 80px; margin: 0 auto 16px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      border-radius: 20px; display: flex; align-items: center;
+      justify-content: center; font-size: 48px;
+    }
+    .logo-text { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+    .logo-subtitle { color: var(--muted); font-size: 14px; }
+    .card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 24px; padding: 40px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    .progress { display: flex; justify-content: center; gap: 8px; margin-bottom: 28px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); transition: all 0.3s; }
+    .dot.active { background: var(--accent); width: 24px; border-radius: 4px; }
+    .dot.done { background: var(--success); }
+    .step-header { text-align: center; margin-bottom: 28px; }
+    .step-icon { font-size: 52px; margin-bottom: 16px; display: block; animation: float 3s ease-in-out infinite; }
+    @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+    .step-title { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+    .step-desc { color: var(--muted); font-size: 14px; line-height: 1.6; }
+    .step-desc strong { color: var(--accent); }
+    .otp-row { display: flex; gap: 10px; justify-content: center; margin: 28px 0; }
+    .otp-input {
+      width: 52px; height: 60px; background: var(--bg); border: 2px solid var(--border);
+      border-radius: 12px; color: var(--text); font-size: 24px; font-weight: 700;
+      text-align: center; outline: none; transition: all 0.2s; caret-color: var(--accent);
+    }
+    .otp-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(34,211,238,0.15); }
+    .otp-input.filled { border-color: var(--accent-2); }
+    .otp-input.error  { border-color: var(--error); background: rgba(239,68,68,0.06); }
+    .otp-input.success{ border-color: var(--success); background: rgba(16,185,129,0.06); }
+    .submit-btn {
+      width: 100%; padding: 14px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      border: none; border-radius: 12px; color: white;
+      font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+    }
+    .submit-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(34,211,238,0.3); }
+    .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .message { padding: 12px 16px; border-radius: 12px; margin-bottom: 20px; font-size: 14px; display: none; }
+    .message.show { display: block; }
+    .message.error  { background: rgba(239,68,68,0.1);  border: 1px solid var(--error);   color: var(--error); }
+    .message.success{ background: rgba(16,185,129,0.1); border: 1px solid var(--success); color: var(--success); }
+    .resend-row { text-align: center; margin-top: 24px; font-size: 14px; color: var(--muted); }
+    .resend-btn {
+      background: none; border: none; color: var(--accent); font-size: 14px;
+      cursor: pointer; font-weight: 600; padding: 0; transition: opacity 0.2s;
+    }
+    .resend-btn:disabled { opacity: 0.4; cursor: not-allowed; color: var(--muted); }
+    .timer { display: inline-block; color: var(--accent-2); font-weight: 600; min-width: 36px; }
+    .back-link { text-align: center; margin-top: 20px; font-size: 14px; color: var(--muted); }
+    .back-link a { color: var(--accent); text-decoration: none; font-weight: 600; }
+    .back-link a:hover { text-decoration: underline; }
+    .success-screen { display: none; text-align: center; padding: 20px 0; }
+    .success-screen.show { display: block; }
+    .checkmark { font-size: 64px; margin-bottom: 16px; display: block; animation: pop 0.5s cubic-bezier(0.175,0.885,0.32,1.275); }
+    @keyframes pop { 0%{transform:scale(0);opacity:0} 100%{transform:scale(1);opacity:1} }
+    @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-8px)} 75%{transform:translateX(8px)} }
+    .shake { animation: shake 0.35s; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="logo">
+    <div class="logo-icon">&#9925;</div>
+    <div class="logo-text">Weather Dashboard</div>
+    <div class="logo-subtitle">Email Verification</div>
+  </div>
+
+  <div class="card">
+    <div class="progress">
+      <div class="dot done" id="dot1"></div>
+      <div class="dot active" id="dot2"></div>
+      <div class="dot" id="dot3"></div>
+    </div>
+
+    <div id="verifyScreen">
+      <div class="step-header">
+        <span class="step-icon">&#128236;</span>
+        <div class="step-title">Check your inbox</div>
+        <div class="step-desc">We sent a 6-digit code to<br><strong id="emailDisplay">your email</strong></div>
+      </div>
+
+      <div id="message" class="message"></div>
+
+      <div class="otp-row" id="otpRow">
+        <input class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="one-time-code" id="otp0">
+        <input class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]" id="otp1">
+        <input class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]" id="otp2">
+        <input class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]" id="otp3">
+        <input class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]" id="otp4">
+        <input class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]" id="otp5">
+      </div>
+
+      <button class="submit-btn" id="verifyBtn" disabled>Verify Email</button>
+
+      <div class="resend-row">
+        Didn't receive the code?&nbsp;
+        <button class="resend-btn" id="resendBtn" disabled>Resend</button>
+        <span class="timer" id="timer"></span>
+      </div>
+    </div>
+
+    <div class="success-screen" id="successScreen">
+      <span class="checkmark">&#9989;</span>
+      <div class="step-title" style="margin-bottom:12px">Email Verified!</div>
+      <div class="step-desc">Your account is now active.<br>Redirecting to dashboard&hellip;</div>
+    </div>
+
+    <div class="back-link"><a href="/auth.html">&#8592; Back to Login</a></div>
+  </div>
+</div>
+
+<script>
+  const params = new URLSearchParams(window.location.search);
+  const email  = params.get('email') || '';
+  if (!email) window.location.href = '/auth.html';
+
+  document.getElementById('emailDisplay').textContent = email;
+
+  const inputs    = Array.from(document.querySelectorAll('.otp-input'));
+  const verifyBtn = document.getElementById('verifyBtn');
+  const messageEl = document.getElementById('message');
+  const resendBtn = document.getElementById('resendBtn');
+  const timerEl   = document.getElementById('timer');
+
+  function getOTP() { return inputs.map(i => i.value).join(''); }
+
+  function checkComplete() {
+    const ok = inputs.every(i => /[0-9]/.test(i.value));
+    verifyBtn.disabled = !ok;
+    inputs.forEach(i => {
+      i.classList.toggle('filled', /[0-9]/.test(i.value));
+    });
+  }
+
+  inputs.forEach((input, idx) => {
+    input.addEventListener('paste', e => {
+      e.preventDefault();
+      const digits = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g,'').slice(0,6);
+      digits.split('').forEach((d,i) => { if(inputs[i]) inputs[i].value = d; });
+      inputs[Math.min(digits.length, 5)].focus();
+      checkComplete();
+    });
+
+    input.addEventListener('input', e => {
+      const val = e.target.value;
+      if (val.length > 1) {
+        const digits = val.replace(/\D/g,'').slice(0,6);
+        digits.split('').forEach((d,i) => { if(inputs[i]) inputs[i].value = d; });
+        inputs[Math.min(digits.length,5)].focus();
+        checkComplete(); return;
+      }
+      if (val && !/[0-9]/.test(val)) { input.value = ''; return; }
+      if (val && idx < 5) inputs[idx+1].focus();
+      checkComplete();
+    });
+
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Backspace' && !input.value && idx > 0) {
+        inputs[idx-1].value = '';
+        inputs[idx-1].focus();
+        checkComplete();
+      }
+      if (e.key === 'ArrowLeft'  && idx > 0) inputs[idx-1].focus();
+      if (e.key === 'ArrowRight' && idx < 5) inputs[idx+1].focus();
+    });
+  });
+
+  // Auto-submit when last digit entered
+  inputs[5].addEventListener('input', () => {
+    if (getOTP().length === 6) setTimeout(() => verifyBtn.click(), 250);
+  });
+
+  function showMsg(text, type='error') {
+    messageEl.textContent = text;
+    messageEl.className   = 'message show ' + type;
+    if (type === 'error') {
+      document.getElementById('otpRow').classList.add('shake');
+      setTimeout(() => document.getElementById('otpRow').classList.remove('shake'), 350);
+    }
+  }
+  function hideMsg() { messageEl.className = 'message'; }
+
+  let countdown;
+  function startCountdown(sec) {
+    clearInterval(countdown);
+    let s = sec;
+    resendBtn.disabled = true;
+    const tick = () => {
+      timerEl.textContent = s > 0 ? '(' + s + 's)' : '';
+      if (s-- <= 0) { resendBtn.disabled = false; clearInterval(countdown); }
+    };
+    tick();
+    countdown = setInterval(tick, 1000);
+  }
+  startCountdown(60);
+
+  resendBtn.addEventListener('click', async () => {
+    resendBtn.disabled = true;
+    hideMsg();
+    try {
+      const res  = await fetch('/api/auth/resend-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showMsg('New code sent! Check your inbox.', 'success');
+        inputs.forEach(i => { i.value=''; i.classList.remove('filled','error','success'); });
+        inputs[0].focus(); checkComplete();
+        startCountdown(60);
+      } else {
+        showMsg(data.message);
+        startCountdown(30);
+      }
+    } catch { showMsg('Network error. Please try again.'); resendBtn.disabled = false; }
+  });
+
+  verifyBtn.addEventListener('click', async () => {
+    const otp = getOTP();
+    if (otp.length !== 6) return;
+    verifyBtn.disabled = true;
+    verifyBtn.textContent = 'Verifying...';
+    hideMsg();
+    try {
+      const res  = await fetch('/api/auth/verify-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, otp })
+      });
+      const data = await res.json();
+      if (data.success) {
+        inputs.forEach(i => i.classList.add('success'));
+        localStorage.setItem('sessionToken', data.sessionToken);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        document.getElementById('dot2').classList.replace('active','done');
+        document.getElementById('dot3').classList.add('active','done');
+        document.getElementById('verifyScreen').style.display = 'none';
+        document.getElementById('successScreen').classList.add('show');
+        setTimeout(() => window.location.href = '/dashboard.html', 2000);
+      } else {
+        inputs.forEach(i => i.classList.add('error'));
+        showMsg(data.message || 'Invalid code. Please try again.');
+        verifyBtn.disabled = false;
+        verifyBtn.textContent = 'Verify Email';
+        setTimeout(() => {
+          inputs.forEach(i => { i.value=''; i.classList.remove('error','filled'); });
+          inputs[0].focus(); checkComplete();
+        }, 900);
+      }
+    } catch {
+      showMsg('Network error. Please try again.');
+      verifyBtn.disabled = false;
+      verifyBtn.textContent = 'Verify Email';
+    }
+  });
+
+  inputs[0].focus();
+</script>
+</body>
+</html>

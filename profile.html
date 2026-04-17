@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Profile — Weather Dashboard</title>
+  <script src="auth-check.js"></script>
+  <style>
+    :root {
+      --bg: #0f172a; --panel: #111827; --card: #0b1220;
+      --text: #e5e7eb; --muted: #9ca3af; --accent: #22d3ee;
+      --accent2: #60a5fa; --border: #1f2937;
+      --good: #34d399; --warn: #fbbf24; --bad: #f87171;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: ui-sans-serif, system-ui, sans-serif;
+      background: radial-gradient(1200px 600px at 80% -10%, #0ea5e920, transparent 60%),
+                  radial-gradient(1000px 600px at -10% 110%, #22d3ee22, transparent 60%), var(--bg);
+      color: var(--text); min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      position: sticky; top: 0; z-index: 50;
+      backdrop-filter: blur(8px);
+      background: color-mix(in srgb, var(--bg) 80%, transparent);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 24px;
+      display: flex; align-items: center; gap: 16px;
+    }
+    header .brand { font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    .nav-links { display: flex; gap: 8px; margin-left: auto; }
+    .nav-btn {
+      padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border);
+      background: transparent; color: var(--muted); cursor: pointer; font-size: 13px;
+      transition: all 0.2s; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
+    }
+    .nav-btn:hover { color: var(--text); border-color: var(--accent); }
+    .nav-btn.primary { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 600; }
+
+    /* ── Layout ── */
+    .container { max-width: 900px; margin: 0 auto; padding: 32px 16px; }
+    .page-title { font-size: 24px; font-weight: 700; margin-bottom: 28px; display: flex; align-items: center; gap: 10px; }
+
+    .profile-grid { display: grid; grid-template-columns: 280px 1fr; gap: 20px; }
+    @media (max-width: 700px) { .profile-grid { grid-template-columns: 1fr; } }
+
+    /* ── Card ── */
+    .card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 16px; padding: 24px; margin-bottom: 20px;
+    }
+    .card-title { font-size: 14px; font-weight: 700; color: var(--muted); text-transform: uppercase;
+      letter-spacing: .08em; margin-bottom: 16px; }
+
+    /* ── Avatar ── */
+    .avatar-wrap { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+    .avatar {
+      width: 96px; height: 96px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 36px; font-weight: 800; color: #000;
+      transition: background 0.3s;
+    }
+    .avatar-name { font-size: 18px; font-weight: 700; }
+    .avatar-email { font-size: 13px; color: var(--muted); }
+    .avatar-role {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 3px 10px; border-radius: 99px; font-size: 11px; font-weight: 700;
+      background: rgba(34,211,238,0.15); color: var(--accent); border: 1px solid rgba(34,211,238,0.3);
+    }
+    .verified-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 3px 10px; border-radius: 99px; font-size: 11px; font-weight: 700;
+    }
+    .verified-badge.yes { background: rgba(52,211,153,0.15); color: var(--good); border: 1px solid rgba(52,211,153,0.3); }
+    .verified-badge.no  { background: rgba(251,191,36,0.15);  color: var(--warn); border: 1px solid rgba(251,191,36,0.3); }
+
+    /* ── Color picker ── */
+    .color-swatches { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 8px; }
+    .swatch {
+      width: 28px; height: 28px; border-radius: 50%; cursor: pointer;
+      border: 2px solid transparent; transition: all 0.15s;
+    }
+    .swatch.active, .swatch:hover { border-color: var(--text); transform: scale(1.15); }
+
+    /* ── Stats ── */
+    .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .stat-box {
+      background: var(--panel); border: 1px solid var(--border);
+      border-radius: 12px; padding: 14px; text-align: center;
+    }
+    .stat-box .val { font-size: 28px; font-weight: 800; color: var(--accent); }
+    .stat-box .lbl { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+    /* ── Form ── */
+    .form-group { margin-bottom: 16px; }
+    .form-label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--muted); }
+    .form-input {
+      width: 100%; padding: 10px 14px; background: var(--panel);
+      border: 1px solid var(--border); border-radius: 10px;
+      color: var(--text); font-size: 14px; outline: none; transition: border-color 0.2s;
+      font-family: inherit;
+    }
+    .form-input:focus { border-color: var(--accent); }
+    textarea.form-input { resize: vertical; min-height: 72px; }
+
+    .btn {
+      padding: 10px 20px; border-radius: 10px; border: 1px solid var(--border);
+      background: transparent; color: var(--text); cursor: pointer; font-size: 14px;
+      font-weight: 600; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px;
+    }
+    .btn:hover { border-color: var(--accent); color: var(--accent); }
+    .btn.primary { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #000; border: none; }
+    .btn.primary:hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn.danger { border-color: var(--bad); color: var(--bad); }
+    .btn.danger:hover { background: rgba(248,113,113,0.1); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
+
+    /* ── OTP Section ── */
+    .otp-section { padding: 16px; background: var(--panel); border-radius: 12px; border: 1px solid var(--border); }
+    .otp-row { display: flex; gap: 8px; align-items: center; }
+    .otp-input { width: 140px; text-align: center; letter-spacing: 0.3em; font-size: 18px; font-weight: 700; }
+
+    /* ── Message ── */
+    .msg { padding: 10px 14px; border-radius: 10px; font-size: 13px; margin-bottom: 12px; display: none; }
+    .msg.show { display: block; }
+    .msg.success { background: rgba(52,211,153,0.1); border: 1px solid var(--good); color: var(--good); }
+    .msg.error   { background: rgba(248,113,113,0.1); border: 1px solid var(--bad);  color: var(--bad); }
+    .msg.info    { background: rgba(34,211,238,0.1);  border: 1px solid var(--accent); color: var(--accent); }
+
+    /* ── Export ── */
+    .export-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+    .export-card {
+      background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+      padding: 16px; display: flex; flex-direction: column; gap: 8px;
+    }
+    .export-card .export-icon { font-size: 24px; }
+    .export-card .export-title { font-size: 13px; font-weight: 700; }
+    .export-card .export-desc { font-size: 11px; color: var(--muted); flex: 1; }
+
+    /* ── Danger zone ── */
+    .danger-section { border: 1px solid rgba(248,113,113,0.3); border-radius: 12px; padding: 16px; }
+    .danger-section p { font-size: 13px; color: var(--muted); margin-bottom: 12px; }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+      padding: 12px 20px; border-radius: 12px; font-size: 14px; font-weight: 600;
+      display: none; align-items: center; gap: 8px;
+      background: var(--card); border: 1px solid var(--border);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+    #toast.show { display: flex; }
+    #toast.success { border-color: var(--good); color: var(--good); }
+    #toast.error   { border-color: var(--bad);  color: var(--bad); }
+
+    hr.divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">⛅ Weather Dashboard</div>
+    <div class="nav-links">
+      <a href="/dashboard.html" class="nav-btn">🌤️ Dashboard</a>
+      <a href="/admin.html" class="nav-btn" id="adminLink" style="display:none">🔧 Admin</a>
+      <button class="nav-btn" onclick="logout()">Logout</button>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="page-title">👤 My Profile</div>
+
+    <div class="profile-grid">
+      <!-- LEFT COLUMN -->
+      <div>
+        <!-- Avatar Card -->
+        <div class="card">
+          <div class="avatar-wrap">
+            <div class="avatar" id="avatarEl">?</div>
+            <div class="avatar-name" id="profileName">—</div>
+            <div class="avatar-email" id="profileEmail">—</div>
+            <span class="avatar-role" id="profileRole">user</span>
+            <span class="verified-badge no" id="verifiedBadge">✕ Unverified</span>
+          </div>
+
+          <!-- Avatar color picker -->
+          <hr class="divider">
+          <div class="card-title">Avatar Color</div>
+          <div class="color-swatches" id="colorSwatches"></div>
+        </div>
+
+        <!-- Stats Card -->
+        <div class="card">
+          <div class="card-title">My Stats</div>
+          <div class="stats-grid">
+            <div class="stat-box"><div class="val" id="statHistory">—</div><div class="lbl">Searches Saved</div></div>
+            <div class="stat-box"><div class="val" id="statFavs">—</div><div class="lbl">Favorite Cities</div></div>
+            <div class="stat-box"><div class="val" id="statToday">—</div><div class="lbl">API Calls Today</div></div>
+            <div class="stat-box"><div class="val" id="statTotal">—</div><div class="lbl">Total API Calls</div></div>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-top:12px;text-align:center">Member since: <span id="memberSince">—</span></div>
+        </div>
+      </div>
+
+      <!-- RIGHT COLUMN -->
+      <div>
+        <!-- Edit Profile -->
+        <div class="card">
+          <div class="card-title">Edit Profile</div>
+          <div id="profileMsg" class="msg"></div>
+
+          <div class="form-group">
+            <label class="form-label">Full Name</label>
+            <input type="text" id="editName" class="form-input" placeholder="Your name" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Bio</label>
+            <textarea id="editBio" class="form-input" placeholder="Tell us a bit about yourself…"></textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Default Units</label>
+            <select id="editUnits" class="form-input">
+              <option value="metric">Metric (°C, km/h)</option>
+              <option value="imperial">Imperial (°F, mph)</option>
+            </select>
+          </div>
+
+          <button class="btn primary" id="btnSaveProfile">💾 Save Changes</button>
+        </div>
+
+        <!-- Change Password -->
+        <div class="card">
+          <div class="card-title">Change Password</div>
+          <div id="pwdMsg" class="msg"></div>
+          <div class="form-group">
+            <label class="form-label">Current Password</label>
+            <input type="password" id="currentPwd" class="form-input" placeholder="••••••••" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">New Password</label>
+            <input type="password" id="newPwd" class="form-input" placeholder="At least 6 characters" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Confirm New Password</label>
+            <input type="password" id="confirmPwd" class="form-input" placeholder="••••••••" />
+          </div>
+          <button class="btn primary" id="btnChangePwd">🔑 Change Password</button>
+        </div>
+
+        <!-- Email Verification -->
+        <div class="card" id="verifySection">
+          <div class="card-title">📧 Email Verification</div>
+          <div id="verifyMsg" class="msg"></div>
+          <div class="otp-section">
+            <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">
+              Verify your email to unlock all features. We'll send a 6-digit code to your inbox.
+              <strong style="color:var(--warn)">(Demo mode: OTP appears in server console & response)</strong>
+            </p>
+            <button class="btn" id="btnSendOTP">📨 Send OTP</button>
+            <div id="otpInput" style="display:none;margin-top:12px;">
+              <div class="otp-row">
+                <input type="text" id="otpField" class="form-input otp-input" maxlength="6" placeholder="000000" />
+                <button class="btn primary" id="btnVerifyOTP">✓ Verify</button>
+              </div>
+              <div id="devOtpHint" style="font-size:12px;color:var(--warn);margin-top:8px;display:none;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Export Data -->
+        <div class="card">
+          <div class="card-title">📥 Export My Data</div>
+          <div class="export-grid">
+            <div class="export-card">
+              <div class="export-icon">🌡️</div>
+              <div class="export-title">Weather History</div>
+              <div class="export-desc">All your past weather searches with temperature, humidity, and more.</div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <button class="btn" onclick="exportData('/api/export/history.csv')">📊 CSV</button>
+                <button class="btn" onclick="exportData('/api/export/history.json')">{ } JSON</button>
+              </div>
+            </div>
+            <div class="export-card">
+              <div class="export-icon">❤️</div>
+              <div class="export-title">Favorite Cities</div>
+              <div class="export-desc">All your saved cities with coordinates and dates.</div>
+              <button class="btn" onclick="exportData('/api/export/favorites.csv')">📊 CSV</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Danger Zone -->
+        <div class="card">
+          <div class="card-title" style="color:var(--bad)">⚠️ Danger Zone</div>
+          <div class="danger-section">
+            <p>Logging out will end your current session. You can log back in anytime.</p>
+            <button class="btn danger" onclick="logout()">🚪 Logout</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+  <script>
+    const AVATAR_COLORS = [
+      '#22d3ee','#60a5fa','#a78bfa','#f472b6',
+      '#34d399','#fbbf24','#f87171','#fb923c',
+      '#818cf8','#2dd4bf','#e879f9','#4ade80'
+    ];
+    let profileData = null;
+    let selectedColor = '#22d3ee';
+
+    // Build color swatches
+    const swatchContainer = document.getElementById('colorSwatches');
+    AVATAR_COLORS.forEach(color => {
+      const s = document.createElement('div');
+      s.className = 'swatch';
+      s.style.background = color;
+      s.title = color;
+      s.addEventListener('click', () => {
+        document.querySelectorAll('.swatch').forEach(x => x.classList.remove('active'));
+        s.classList.add('active');
+        selectedColor = color;
+        document.getElementById('avatarEl').style.background = color;
+      });
+      swatchContainer.appendChild(s);
+    });
+
+    function showToast(msg, type = 'success') {
+      const t = document.getElementById('toast');
+      t.textContent = (type === 'success' ? '✓ ' : '✕ ') + msg;
+      t.className = 'show ' + type;
+      setTimeout(() => t.className = '', 3000);
+    }
+
+    function showMsg(id, msg, type) {
+      const el = document.getElementById(id);
+      el.textContent = msg;
+      el.className = 'msg show ' + type;
+    }
+    function hideMsg(id) { document.getElementById(id).className = 'msg'; }
+
+    async function loadProfile() {
+      try {
+        const res = await fetch('/api/profile');
+        const data = await res.json();
+        profileData = data;
+
+        // Avatar
+        const initial = (data.name || '?').charAt(0).toUpperCase();
+        const color = data.avatar_color || '#22d3ee';
+        selectedColor = color;
+        document.getElementById('avatarEl').textContent = initial;
+        document.getElementById('avatarEl').style.background = color;
+
+        // Mark active swatch
+        document.querySelectorAll('.swatch').forEach(s => {
+          if (s.style.background === color || s.title === color) s.classList.add('active');
+        });
+
+        document.getElementById('profileName').textContent = data.name;
+        document.getElementById('profileEmail').textContent = data.email;
+        document.getElementById('profileRole').textContent = data.role;
+        if (data.role === 'admin') {
+          document.getElementById('adminLink').style.display = '';
+        }
+
+        // Verified badge
+        const badge = document.getElementById('verifiedBadge');
+        if (data.verified) {
+          badge.className = 'verified-badge yes';
+          badge.textContent = '✓ Verified';
+          document.getElementById('verifySection').style.display = 'none';
+        } else {
+          badge.className = 'verified-badge no';
+          badge.textContent = '✕ Unverified';
+        }
+
+        // Stats
+        document.getElementById('statHistory').textContent = data.stats.historyCount;
+        document.getElementById('statFavs').textContent = data.stats.favoritesCount;
+        document.getElementById('statToday').textContent = data.stats.apiCallsToday;
+        document.getElementById('statTotal').textContent = data.stats.apiCallsTotal;
+        document.getElementById('memberSince').textContent = new Date(data.created_at).toLocaleDateString();
+
+        // Prefill form
+        document.getElementById('editName').value = data.name;
+        document.getElementById('editBio').value = data.bio || '';
+        document.getElementById('editUnits').value = data.units || 'metric';
+
+      } catch (err) {
+        showToast('Failed to load profile: ' + err.message, 'error');
+      }
+    }
+
+    // Save profile
+    document.getElementById('btnSaveProfile').addEventListener('click', async () => {
+      const btn = document.getElementById('btnSaveProfile');
+      btn.disabled = true;
+      hideMsg('profileMsg');
+      try {
+        const res = await fetch('/api/profile/update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: document.getElementById('editName').value.trim(),
+            bio: document.getElementById('editBio').value,
+            avatar_color: selectedColor,
+            units: document.getElementById('editUnits').value,
+          })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showMsg('profileMsg', '✓ ' + data.message, 'success');
+          loadProfile();
+        } else {
+          showMsg('profileMsg', data.message, 'error');
+        }
+      } catch (err) {
+        showMsg('profileMsg', 'Error: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    // Change password
+    document.getElementById('btnChangePwd').addEventListener('click', async () => {
+      const btn = document.getElementById('btnChangePwd');
+      const current = document.getElementById('currentPwd').value;
+      const newP = document.getElementById('newPwd').value;
+      const confirm = document.getElementById('confirmPwd').value;
+      hideMsg('pwdMsg');
+
+      if (!current || !newP || !confirm) return showMsg('pwdMsg', 'All fields are required', 'error');
+      if (newP !== confirm) return showMsg('pwdMsg', 'New passwords do not match', 'error');
+      if (newP.length < 6) return showMsg('pwdMsg', 'Password must be at least 6 characters', 'error');
+
+      btn.disabled = true;
+      try {
+        const res = await fetch('/api/profile/update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ currentPassword: current, newPassword: newP })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showMsg('pwdMsg', '✓ Password changed! Please log in again.', 'success');
+          document.getElementById('currentPwd').value = '';
+          document.getElementById('newPwd').value = '';
+          document.getElementById('confirmPwd').value = '';
+        } else {
+          showMsg('pwdMsg', data.message, 'error');
+        }
+      } catch (err) {
+        showMsg('pwdMsg', 'Error: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    // Send OTP
+    document.getElementById('btnSendOTP').addEventListener('click', async () => {
+      const btn = document.getElementById('btnSendOTP');
+      btn.disabled = true;
+      btn.textContent = 'Sending…';
+      hideMsg('verifyMsg');
+      try {
+        const email = profileData?.email;
+        const res = await fetch('/api/auth/send-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+        const data = await res.json();
+        if (data.success) {
+          document.getElementById('otpInput').style.display = 'block';
+          showMsg('verifyMsg', '📨 OTP sent! Check your email (or server console in demo mode).', 'info');
+          if (data.devOtp) {
+            const hint = document.getElementById('devOtpHint');
+            hint.textContent = `🔧 Demo OTP: ${data.devOtp}`;
+            hint.style.display = 'block';
+          }
+        } else {
+          showMsg('verifyMsg', data.message, 'error');
+        }
+      } catch (err) {
+        showMsg('verifyMsg', 'Error: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '📨 Resend OTP';
+      }
+    });
+
+    // Verify OTP
+    document.getElementById('btnVerifyOTP').addEventListener('click', async () => {
+      const otp = document.getElementById('otpField').value.trim();
+      const email = profileData?.email;
+      if (!otp || otp.length !== 6) return showMsg('verifyMsg', 'Enter the 6-digit OTP', 'error');
+
+      try {
+        const res = await fetch('/api/auth/verify-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, otp })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showMsg('verifyMsg', '✓ Email verified successfully!', 'success');
+          setTimeout(() => { document.getElementById('verifySection').style.display = 'none'; loadProfile(); }, 1500);
+        } else {
+          showMsg('verifyMsg', data.message, 'error');
+        }
+      } catch (err) {
+        showMsg('verifyMsg', 'Error: ' + err.message, 'error');
+      }
+    });
+
+    // Export
+    async function exportData(url) {
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('Export failed');
+        const blob = await res.blob();
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = url.split('/').pop();
+        a.click();
+        showToast('Export downloaded!');
+      } catch (err) {
+        showToast('Export failed: ' + err.message, 'error');
+      }
+    }
+
+    loadProfile();
+  </script>
+</body>
+</html>

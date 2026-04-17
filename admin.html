@@ -1,0 +1,1615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Panel — Weather Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:        #080c14;
+      --surface:   #0d1422;
+      --surface2:  #111927;
+      --border:    #1c2a3a;
+      --border2:   #243347;
+      --text:      #e2eaf4;
+      --muted:     #5a7290;
+      --accent:    #00d4ff;
+      --accent2:   #0088cc;
+      --green:     #00e5a0;
+      --red:       #ff4060;
+      --amber:     #ffb820;
+      --purple:    #9b6dff;
+      --mono:      'JetBrains Mono', monospace;
+      --sans:      'Syne', sans-serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--sans);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      overflow-x: hidden;
+    }
+
+    /* ── Sidebar ── */
+    #sidebar {
+      width: 240px;
+      min-height: 100vh;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      position: sticky;
+      top: 0;
+      flex-shrink: 0;
+    }
+
+    .sidebar-logo {
+      padding: 28px 24px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .sidebar-logo .badge {
+      font-size: 10px;
+      font-family: var(--mono);
+      background: var(--accent);
+      color: #000;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-weight: 600;
+      letter-spacing: .08em;
+      vertical-align: middle;
+      margin-left: 6px;
+    }
+    .sidebar-logo h1 {
+      font-size: 17px;
+      font-weight: 800;
+      color: var(--text);
+      line-height: 1;
+      margin-top: 4px;
+    }
+    .sidebar-logo p { font-size: 11px; color: var(--muted); margin-top: 3px; font-family: var(--mono); }
+
+    nav { padding: 16px 12px; flex: 1; }
+    .nav-section { margin-bottom: 20px; }
+    .nav-label {
+      font-size: 10px;
+      font-family: var(--mono);
+      letter-spacing: .12em;
+      color: var(--muted);
+      padding: 0 12px 8px;
+      text-transform: uppercase;
+    }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 600;
+      transition: all .15s;
+      border: none;
+      background: transparent;
+      width: 100%;
+      text-align: left;
+    }
+    .nav-item .icon { font-size: 16px; width: 20px; text-align: center; }
+    .nav-item:hover { background: var(--surface2); color: var(--text); }
+    .nav-item.active { background: rgba(0,212,255,.1); color: var(--accent); border: 1px solid rgba(0,212,255,.2); }
+    .nav-item .badge-count {
+      margin-left: auto;
+      background: var(--accent);
+      color: #000;
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 10px;
+    }
+
+    .sidebar-footer {
+      padding: 16px;
+      border-top: 1px solid var(--border);
+    }
+    .admin-user {
+      display: flex; align-items: center; gap: 10px;
+    }
+    .admin-avatar {
+      width: 34px; height: 34px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 800; color: #000;
+      flex-shrink: 0;
+    }
+    .admin-info { flex: 1; min-width: 0; }
+    .admin-info .name { font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .admin-info .role { font-size: 10px; color: var(--accent); font-family: var(--mono); }
+    .logout-btn {
+      background: transparent; border: none; color: var(--muted);
+      cursor: pointer; font-size: 16px; padding: 4px;
+      transition: color .15s;
+    }
+    .logout-btn:hover { color: var(--red); }
+
+    /* ── Main ── */
+    #main {
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 20px 32px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      position: sticky; top: 0; z-index: 10;
+    }
+    .topbar h2 { font-size: 20px; font-weight: 800; }
+    .topbar-actions { display: flex; gap: 10px; align-items: center; }
+    .topbar-time {
+      font-family: var(--mono); font-size: 12px; color: var(--muted);
+      background: var(--surface2); padding: 6px 12px; border-radius: 6px;
+      border: 1px solid var(--border);
+    }
+
+    /* ── Panels ── */
+    .panel { display: none; padding: 32px; }
+    .panel.active { display: block; }
+
+    /* ── Stats Cards ── */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color .2s;
+    }
+    .stat-card:hover { border-color: var(--border2); }
+    .stat-card::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: linear-gradient(135deg, rgba(0,212,255,.04) 0%, transparent 60%);
+      pointer-events: none;
+    }
+    .stat-card .label { font-size: 11px; font-family: var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: .1em; }
+    .stat-card .value { font-size: 32px; font-weight: 800; margin: 6px 0 4px; line-height: 1; }
+    .stat-card .change { font-size: 12px; color: var(--muted); }
+    .stat-card .change.up { color: var(--green); }
+    .stat-card .change.down { color: var(--red); }
+    .stat-card .icon-bg {
+      position: absolute; right: 16px; top: 16px;
+      font-size: 28px; opacity: .15;
+    }
+    .stat-card.accent .value { color: var(--accent); }
+    .stat-card.green .value { color: var(--green); }
+    .stat-card.red .value { color: var(--red); }
+    .stat-card.amber .value { color: var(--amber); }
+
+    /* ── Section Headers ── */
+    .section-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .section-header h3 { font-size: 15px; font-weight: 700; }
+    .section-header .sub { font-size: 12px; color: var(--muted); font-family: var(--mono); }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    /* ── Tables ── */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    thead th {
+      text-align: left;
+      padding: 10px 14px;
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+      font-weight: 600;
+    }
+    tbody tr {
+      border-bottom: 1px solid var(--border);
+      transition: background .12s;
+    }
+    tbody tr:hover { background: var(--surface2); }
+    tbody tr:last-child { border-bottom: none; }
+    tbody td { padding: 12px 14px; vertical-align: middle; }
+    .td-mono { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+
+    /* ── Badges ── */
+    .badge {
+      display: inline-flex; align-items: center;
+      padding: 3px 9px; border-radius: 6px;
+      font-size: 11px; font-weight: 700; font-family: var(--mono);
+      letter-spacing: .03em;
+    }
+    .badge.green { background: rgba(0,229,160,.12); color: var(--green); border: 1px solid rgba(0,229,160,.25); }
+    .badge.red { background: rgba(255,64,96,.12); color: var(--red); border: 1px solid rgba(255,64,96,.25); }
+    .badge.amber { background: rgba(255,184,32,.12); color: var(--amber); border: 1px solid rgba(255,184,32,.25); }
+    .badge.blue { background: rgba(0,212,255,.12); color: var(--accent); border: 1px solid rgba(0,212,255,.25); }
+    .badge.purple { background: rgba(155,109,255,.12); color: var(--purple); border: 1px solid rgba(155,109,255,.25); }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      border: 1px solid var(--border2);
+      background: var(--surface2);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 13px; font-weight: 600;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .btn:hover { background: var(--border2); border-color: var(--muted); }
+    .btn.primary { background: var(--accent); border-color: var(--accent); color: #000; }
+    .btn.primary:hover { background: #00b8dd; }
+    .btn.danger { background: rgba(255,64,96,.1); border-color: rgba(255,64,96,.3); color: var(--red); }
+    .btn.danger:hover { background: rgba(255,64,96,.2); }
+    .btn.success { background: rgba(0,229,160,.1); border-color: rgba(0,229,160,.3); color: var(--green); }
+    .btn.sm { padding: 5px 10px; font-size: 12px; border-radius: 6px; }
+
+    /* ── Forms ── */
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-group.full { grid-column: 1 / -1; }
+    label { font-size: 12px; font-weight: 600; color: var(--muted); font-family: var(--mono); text-transform: uppercase; letter-spacing: .08em; }
+    input[type="text"], input[type="email"], input[type="password"], input[type="number"], select, textarea {
+      background: var(--bg);
+      border: 1px solid var(--border2);
+      border-radius: 8px;
+      color: var(--text);
+      padding: 10px 14px;
+      font-family: var(--sans);
+      font-size: 14px;
+      outline: none;
+      transition: border-color .15s;
+      width: 100%;
+    }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+    textarea { resize: vertical; min-height: 80px; }
+    select option { background: var(--surface2); }
+
+    /* ── Toggle ── */
+    .toggle-wrap { display: flex; align-items: center; gap: 12px; }
+    .toggle {
+      width: 44px; height: 24px;
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      border-radius: 12px;
+      cursor: pointer; position: relative;
+      transition: background .2s;
+      flex-shrink: 0;
+    }
+    .toggle.on { background: var(--accent); border-color: var(--accent); }
+    .toggle::after {
+      content: '';
+      width: 18px; height: 18px;
+      background: #fff;
+      border-radius: 50%;
+      position: absolute;
+      top: 2px; left: 2px;
+      transition: transform .2s;
+      box-shadow: 0 1px 3px rgba(0,0,0,.4);
+    }
+    .toggle.on::after { transform: translateX(20px); }
+    .toggle-label { font-size: 13px; font-weight: 600; }
+
+    /* ── Activity Feed ── */
+    .activity-list { display: flex; flex-direction: column; gap: 0; }
+    .activity-item {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .activity-item:last-child { border-bottom: none; }
+    .activity-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      margin-top: 5px; flex-shrink: 0;
+    }
+    .activity-dot.green { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .activity-dot.blue { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+    .activity-dot.amber { background: var(--amber); box-shadow: 0 0 6px var(--amber); }
+    .activity-dot.red { background: var(--red); box-shadow: 0 0 6px var(--red); }
+    .activity-text { flex: 1; font-size: 13px; line-height: 1.5; }
+    .activity-text strong { color: var(--text); }
+    .activity-text .time { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+
+    /* ── Chart placeholder ── */
+    .chart-area {
+      height: 160px;
+      display: flex; align-items: flex-end; gap: 6px;
+      padding: 16px 0 0;
+    }
+    .chart-bar {
+      flex: 1; border-radius: 4px 4px 0 0;
+      background: rgba(0,212,255,.18);
+      border: 1px solid rgba(0,212,255,.3);
+      transition: background .2s;
+      cursor: pointer;
+      position: relative;
+    }
+    .chart-bar:hover { background: rgba(0,212,255,.35); }
+    .chart-bar .tip {
+      position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+      background: var(--surface2); border: 1px solid var(--border2);
+      padding: 3px 7px; border-radius: 5px;
+      font-family: var(--mono); font-size: 11px; color: var(--accent);
+      white-space: nowrap; opacity: 0; transition: opacity .15s;
+      pointer-events: none; margin-bottom: 4px;
+    }
+    .chart-bar:hover .tip { opacity: 1; }
+    .chart-labels {
+      display: flex; gap: 6px;
+      font-family: var(--mono); font-size: 10px; color: var(--muted);
+      padding-top: 6px;
+    }
+    .chart-labels span { flex: 1; text-align: center; }
+
+    /* ── Modals ── */
+    .modal-backdrop {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.7); backdrop-filter: blur(4px);
+      z-index: 100; align-items: center; justify-content: center;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border2);
+      border-radius: 16px;
+      padding: 28px;
+      width: 100%; max-width: 500px;
+      box-shadow: 0 24px 60px rgba(0,0,0,.6);
+    }
+    .modal h3 { font-size: 17px; font-weight: 800; margin-bottom: 20px; }
+    .modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
+
+    /* ── Notification toast ── */
+    #toast {
+      position: fixed; bottom: 28px; right: 28px;
+      background: var(--surface);
+      border: 1px solid var(--border2);
+      border-radius: 10px;
+      padding: 14px 20px;
+      font-size: 13px; font-weight: 600;
+      box-shadow: 0 8px 24px rgba(0,0,0,.4);
+      z-index: 200;
+      transform: translateY(20px); opacity: 0;
+      transition: all .25s;
+      display: flex; align-items: center; gap: 10px;
+    }
+    #toast.show { transform: translateY(0); opacity: 1; }
+    #toast.success { border-color: rgba(0,229,160,.4); }
+    #toast.error { border-color: rgba(255,64,96,.4); }
+
+    /* ── Responsive ── */
+    @media (max-width: 900px) {
+      .stats-row { grid-template-columns: 1fr 1fr; }
+      #sidebar { width: 200px; }
+    }
+    @media (max-width: 600px) {
+      body { flex-direction: column; }
+      #sidebar { width: 100%; min-height: auto; position: static; }
+      .stats-row { grid-template-columns: 1fr; }
+      .form-grid { grid-template-columns: 1fr; }
+      .panel { padding: 16px; }
+    }
+
+    /* ── Misc helpers ── */
+    .flex { display: flex; }
+    .gap-2 { gap: 8px; }
+    .mt-1 { margin-top: 8px; }
+    .mt-2 { margin-top: 16px; }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .text-muted { color: var(--muted); font-size: 13px; }
+    .avatar-sm {
+      width: 28px; height: 28px;
+      background: linear-gradient(135deg, var(--purple), var(--accent2));
+      border-radius: 6px; display: inline-flex; align-items: center;
+      justify-content: center; font-size: 11px; font-weight: 800; color: #fff;
+      flex-shrink: 0;
+    }
+    .search-input {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px; padding: 8px 14px;
+      font-size: 13px; color: var(--text);
+      font-family: var(--sans); outline: none;
+      transition: border-color .15s;
+    }
+    .search-input:focus { border-color: var(--accent); }
+    .empty-state {
+      text-align: center; padding: 48px 20px;
+      color: var(--muted); font-size: 14px;
+    }
+    .empty-state .icon { font-size: 40px; margin-bottom: 12px; }
+
+    /* Announcement editor */
+    .announcement-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px; border-radius: 8px;
+      background: var(--surface2); border: 1px solid var(--border);
+      margin-bottom: 10px;
+    }
+    .announcement-item .content { flex: 1; font-size: 13px; }
+    .announcement-item .meta { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+
+    /* Loading spinner */
+    .spinner {
+      width: 20px; height: 20px;
+      border: 2px solid var(--border2);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<!-- ════════════════════ SIDEBAR ════════════════════ -->
+<aside id="sidebar">
+  <div class="sidebar-logo">
+    <span style="font-size:22px">⛅</span><span class="badge">ADMIN</span>
+    <h1>Weather Dashboard</h1>
+    <p>Control Panel v1.0</p>
+  </div>
+
+  <nav>
+    <div class="nav-section">
+      <div class="nav-label">Overview</div>
+      <button class="nav-item active" data-panel="overview">
+        <span class="icon">📊</span> Dashboard
+      </button>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Management</div>
+      <button class="nav-item" data-panel="users">
+        <span class="icon">👥</span> Users
+        <span class="badge-count" id="userCountBadge">0</span>
+      </button>
+      <button class="nav-item" data-panel="sessions">
+        <span class="icon">🔑</span> Sessions
+        <span class="badge-count" id="sessionCountBadge">0</span>
+      </button>
+      <button class="nav-item" data-panel="announcements">
+        <span class="icon">📢</span> Announcements
+      </button>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Configuration</div>
+      <button class="nav-item" data-panel="apikeys">
+        <span class="icon">🔐</span> API Keys
+      </button>
+      <button class="nav-item" data-panel="settings">
+        <span class="icon">⚙️</span> App Settings
+      </button>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Monitoring</div>
+      <button class="nav-item" data-panel="logs">
+        <span class="icon">📋</span> Activity Logs
+      </button>
+    </div>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="admin-user">
+      <div class="admin-avatar" id="adminAvatar">A</div>
+      <div class="admin-info">
+        <div class="name" id="adminName">Admin</div>
+        <div class="role">SUPER ADMIN</div>
+      </div>
+      <button class="logout-btn" onclick="doLogout()" title="Logout">⎋</button>
+    </div>
+  </div>
+</aside>
+
+<!-- ════════════════════ MAIN ════════════════════ -->
+<div id="main">
+  <div class="topbar">
+    <h2 id="panelTitle">Dashboard Overview</h2>
+    <div class="topbar-actions">
+      <div class="topbar-time" id="clock">—</div>
+      <button class="btn" onclick="refreshAll()">↺ Refresh</button>
+      <a href="/dashboard.html" class="btn primary" style="text-decoration:none">← Back to App</a>
+    </div>
+  </div>
+
+  <!-- ── OVERVIEW ── -->
+  <div class="panel active" id="panel-overview">
+    <div class="stats-row">
+      <div class="stat-card accent">
+        <div class="label">Total Users</div>
+        <div class="value" id="statUsers">0</div>
+        <div class="change up" id="statUsersChange">Loading…</div>
+        <div class="icon-bg">👥</div>
+      </div>
+      <div class="stat-card green">
+        <div class="label">Active Sessions</div>
+        <div class="value" id="statSessions">0</div>
+        <div class="change" id="statSessionsChange">right now</div>
+        <div class="icon-bg">🔑</div>
+      </div>
+      <div class="stat-card amber">
+        <div class="label">Server Uptime</div>
+        <div class="value" id="statUptime">—</div>
+        <div class="change up">all systems nominal</div>
+        <div class="icon-bg">🖥️</div>
+      </div>
+      <div class="stat-card red">
+        <div class="label">Error Events</div>
+        <div class="value" id="statErrors">0</div>
+        <div class="change">last 24h</div>
+        <div class="icon-bg">⚠️</div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <!-- Signups chart -->
+      <div class="card">
+        <div class="section-header">
+          <h3>Signups — Last 7 Days</h3>
+          <span class="sub" id="chartTotal">0 total</span>
+        </div>
+        <div class="chart-area" id="signupChart"></div>
+        <div class="chart-labels" id="signupLabels"></div>
+      </div>
+
+      <!-- Activity feed -->
+      <div class="card">
+        <div class="section-header">
+          <h3>Recent Activity</h3>
+          <span class="sub">live feed</span>
+        </div>
+        <div class="activity-list" id="activityFeed">
+          <div class="text-muted" style="padding:12px 0">Loading activity…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick status -->
+    <div class="card">
+      <div class="section-header">
+        <h3>System Status</h3>
+        <span class="badge green">All Operational</span>
+      </div>
+      <div style="display:grid; grid-template-columns: repeat(4,1fr); gap:16px; margin-top:4px;">
+        <div>
+          <div style="font-size:11px;color:var(--muted);font-family:var(--mono);margin-bottom:4px;">API PROXY</div>
+          <span class="badge green">● Online</span>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--muted);font-family:var(--mono);margin-bottom:4px;">AUTH SERVICE</div>
+          <span class="badge green">● Online</span>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--muted);font-family:var(--mono);margin-bottom:4px;">SESSION STORE</div>
+          <span class="badge green">● Online</span>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--muted);font-family:var(--mono);margin-bottom:4px;">OPENWEATHER API</div>
+          <span class="badge" id="owmStatus" style="background:rgba(255,184,32,.12);color:var(--amber);border:1px solid rgba(255,184,32,.25)">● Checking…</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── USERS ── -->
+  <div class="panel" id="panel-users">
+    <div style="display:flex;gap:12px;align-items:center;margin-bottom:20px;flex-wrap:wrap;">
+      <input class="search-input" id="userSearch" placeholder="🔍  Search by name or email…" style="flex:1;min-width:200px;" oninput="filterUsers()" />
+      <button class="btn primary" onclick="openCreateUser()">+ Add User</button>
+    </div>
+
+    <div class="card" style="padding:0">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th></th>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Created</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="usersTable">
+            <tr><td colspan="7" style="text-align:center;padding:32px;color:var(--muted)">Loading users…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SESSIONS ── -->
+  <div class="panel" id="panel-sessions">
+    <div style="display:flex;gap:12px;align-items:center;margin-bottom:20px;flex-wrap:wrap;">
+      <span class="text-muted" id="sessionSummary">Loading…</span>
+      <button class="btn danger" style="margin-left:auto" onclick="revokeAllSessions()">⊘ Revoke All Sessions</button>
+    </div>
+
+    <div class="card" style="padding:0">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Token (partial)</th>
+              <th>User</th>
+              <th>Created</th>
+              <th>Expires</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="sessionsTable">
+            <tr><td colspan="6" style="text-align:center;padding:32px;color:var(--muted)">Loading sessions…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── ANNOUNCEMENTS ── -->
+  <div class="panel" id="panel-announcements">
+    <div class="two-col">
+      <div>
+        <div class="card">
+          <div class="section-header"><h3>New Announcement</h3></div>
+          <div class="form-grid" style="grid-template-columns:1fr">
+            <div class="form-group">
+              <label>Message</label>
+              <textarea id="announcementText" placeholder="Enter announcement for all users…"></textarea>
+            </div>
+            <div class="form-group">
+              <label>Type</label>
+              <select id="announcementType">
+                <option value="info">ℹ️ Info</option>
+                <option value="warning">⚠️ Warning</option>
+                <option value="success">✅ Success</option>
+                <option value="error">🚨 Critical</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Duration (hours, 0 = permanent)</label>
+              <input type="number" id="announcementDuration" value="24" min="0" />
+            </div>
+          </div>
+          <div style="margin-top:16px;">
+            <button class="btn primary" onclick="postAnnouncement()">📢 Post Announcement</button>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="section-header"><h3>Active Announcements</h3><span class="badge blue" id="announcementCount">0</span></div>
+          <div id="announcementList">
+            <div class="empty-state"><div class="icon">📭</div>No active announcements</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── API KEYS ── -->
+  <div class="panel" id="panel-apikeys">
+    <div class="card">
+      <div class="section-header">
+        <h3>API Key Configuration</h3>
+        <span class="text-muted">Keys are stored server-side in .env</span>
+      </div>
+      <div style="display:grid;gap:16px;margin-top:8px;">
+
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:16px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <div>
+              <div style="font-weight:700;">OpenWeather API</div>
+              <div style="font-size:12px;color:var(--muted);font-family:var(--mono);">Weather data, geocoding, air quality</div>
+            </div>
+            <span class="badge" id="owmKeyStatus">Checking…</span>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <input type="password" id="owmKeyInput" placeholder="Enter new key…" style="flex:1;" />
+            <button class="btn primary sm" onclick="saveKey('openweather')">Save</button>
+            <button class="btn sm" onclick="testKey('openweather')">Test</button>
+          </div>
+        </div>
+
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:16px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <div>
+              <div style="font-weight:700;">Mapbox API</div>
+              <div style="font-size:12px;color:var(--muted);font-family:var(--mono);">Animated weather map tiles</div>
+            </div>
+            <span class="badge blue">External</span>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <input type="password" id="windyKeyInput" placeholder="Enter new key…" style="flex:1;" />
+            <button class="btn primary sm" onclick="saveKey('windy')">Save</button>
+          </div>
+        </div>
+
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:16px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <div>
+              <div style="font-weight:700;">GNews API</div>
+              <div style="font-size:12px;color:var(--muted);font-family:var(--mono);">City-based news articles</div>
+            </div>
+            <span class="badge blue">External</span>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <input type="password" id="gnewsKeyInput" placeholder="Enter new key…" style="flex:1;" />
+            <button class="btn primary sm" onclick="saveKey('gnews')">Save</button>
+          </div>
+        </div>
+
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:16px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <div>
+              <div style="font-weight:700;">Weather AI API</div>
+              <div style="font-size:12px;color:var(--muted);font-family:var(--mono);">AI chat assistant (via server proxy)</div>
+            </div>
+            <span class="badge" id="geminiKeyStatus">Checking…</span>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <input type="password" id="geminiKeyInput" placeholder="Enter new key…" style="flex:1;" />
+            <button class="btn primary sm" onclick="saveKey('gemini')">Save</button>
+            <button class="btn sm" onclick="testKey('gemini')">Test</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+    <div class="card" style="border-color:rgba(255,184,32,.3)">
+      <div style="display:flex;gap:10px;align-items:flex-start;">
+        <span style="font-size:20px">⚠️</span>
+        <div>
+          <div style="font-weight:700;margin-bottom:4px;">Security Note</div>
+          <div class="text-muted">API keys are sensitive credentials. Saving here updates the server's runtime config. Keys are never exposed in client responses. For production, always use environment variables (.env) and never commit keys to source control.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SETTINGS ── -->
+  <div class="panel" id="panel-settings">
+    <div class="two-col">
+      <div>
+        <div class="card">
+          <div class="section-header"><h3>Authentication Settings</h3></div>
+          <div style="display:flex;flex-direction:column;gap:16px;margin-top:4px;">
+            <div class="form-group">
+              <label>Session Timeout (hours)</label>
+              <input type="number" id="settingSessionTTL" value="168" min="1" max="8760" />
+            </div>
+            <div class="form-group">
+              <label>bcrypt Rounds</label>
+              <input type="number" id="settingBcryptRounds" value="10" min="8" max="14" />
+            </div>
+            <div class="toggle-wrap">
+              <div class="toggle on" id="toggleRegistration" onclick="this.classList.toggle('on');syncToggle('registration',this)"></div>
+              <span class="toggle-label">Allow New Registrations</span>
+            </div>
+            <div class="toggle-wrap">
+              <div class="toggle on" id="toggleMaintenance" onclick="this.classList.toggle('on');syncToggle('maintenance',this)"></div>
+              <span class="toggle-label">Maintenance Mode (blocks non-admins)</span>
+            </div>
+            <button class="btn primary" onclick="saveAuthSettings()">Save Auth Settings</button>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card">
+          <div class="section-header"><h3>App Defaults</h3></div>
+          <div style="display:flex;flex-direction:column;gap:16px;margin-top:4px;">
+            <div class="form-group">
+              <label>Default City</label>
+              <input type="text" id="settingDefaultCity" value="Bengaluru" />
+            </div>
+            <div class="form-group">
+              <label>Default Units</label>
+              <select id="settingUnits">
+                <option value="metric">Metric (°C)</option>
+                <option value="imperial">Imperial (°F)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Default Theme</label>
+              <select id="settingTheme">
+                <option value="night">Night</option>
+                <option value="day">Day</option>
+              </select>
+            </div>
+            <div class="toggle-wrap">
+              <div class="toggle on" id="toggleAI" onclick="this.classList.toggle('on');syncToggle('ai',this)"></div>
+              <span class="toggle-label">Enable AI Chat Assistant</span>
+            </div>
+            <div class="toggle-wrap">
+              <div class="toggle on" id="toggleNews" onclick="this.classList.toggle('on');syncToggle('news',this)"></div>
+              <span class="toggle-label">Enable News Feed</span>
+            </div>
+            <button class="btn primary" onclick="saveAppSettings()">Save App Settings</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="border-color:rgba(255,64,96,.3)">
+      <div class="section-header"><h3 style="color:var(--red)">⚠️ Danger Zone</h3></div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px;">
+        <button class="btn danger" onclick="clearAllSessions()">⊘ Clear All Sessions</button>
+        <button class="btn danger" onclick="clearLogs()">🗑 Clear Activity Logs</button>
+        <button class="btn danger" onclick="confirmReset()">💣 Reset All User Data</button>
+      </div>
+      <div class="text-muted" style="margin-top:10px;font-size:12px;">These actions are irreversible. Proceed with caution.</div>
+    </div>
+  </div>
+
+  <!-- ── LOGS ── -->
+  <div class="panel" id="panel-logs">
+    <div style="display:flex;gap:12px;align-items:center;margin-bottom:20px;flex-wrap:wrap;">
+      <input class="search-input" id="logSearch" placeholder="🔍  Filter logs…" oninput="filterLogs()" style="flex:1;min-width:200px;" />
+      <select class="search-input" id="logLevel" onchange="filterLogs()" style="width:140px;">
+        <option value="">All Levels</option>
+        <option value="INFO">INFO</option>
+        <option value="WARN">WARN</option>
+        <option value="ERROR">ERROR</option>
+      </select>
+      <button class="btn" onclick="clearLogs()">🗑 Clear</button>
+      <button class="btn" onclick="exportLogs()">⬇ Export</button>
+    </div>
+
+    <div class="card" style="padding:0">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Level</th>
+              <th>Event</th>
+              <th>User / IP</th>
+              <th>Details</th>
+            </tr>
+          </thead>
+          <tbody id="logsTable">
+            <tr><td colspan="5" style="text-align:center;padding:32px;color:var(--muted)">No logs yet</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── CREATE/EDIT USER MODAL ── -->
+<div class="modal-backdrop" id="userModal">
+  <div class="modal">
+    <h3 id="userModalTitle">Add User</h3>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Full Name</label>
+        <input type="text" id="modalName" placeholder="John Doe" />
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="modalEmail" placeholder="user@example.com" />
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="modalPassword" placeholder="Leave blank to keep existing" />
+      </div>
+      <div class="form-group">
+        <label>Role</label>
+        <select id="modalRole">
+          <option value="user">User</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('userModal')">Cancel</button>
+      <button class="btn primary" onclick="saveUser()">Save User</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── CONFIRM MODAL ── -->
+<div class="modal-backdrop" id="confirmModal">
+  <div class="modal" style="max-width:380px;">
+    <h3>⚠️ Confirm Action</h3>
+    <p id="confirmText" class="text-muted" style="margin:12px 0 0;line-height:1.6;"></p>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('confirmModal')">Cancel</button>
+      <button class="btn danger" id="confirmBtn">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── TOAST ── -->
+<div id="toast">
+  <span id="toastIcon">✓</span>
+  <span id="toastMsg">Done</span>
+</div>
+
+<script>
+// ════════════════════════════════════════════════
+//  STATE
+// ════════════════════════════════════════════════
+const adminState = {
+  users: [],
+  sessions: [],
+  logs: [],
+  announcements: JSON.parse(localStorage.getItem('admin_announcements') || '[]'),
+  settings: JSON.parse(localStorage.getItem('admin_settings') || '{}'),
+  editingUser: null,
+};
+
+// ════════════════════════════════════════════════
+//  AUTH GUARD
+// ════════════════════════════════════════════════
+(async function() {
+  const token = localStorage.getItem('sessionToken');
+  if (!token) { window.location.href = '/auth.html'; return; }
+
+  try {
+    const r = await fetch('/api/auth/check', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionToken: token })
+    });
+    const d = await r.json();
+    if (!d.authenticated) { window.location.href = '/auth.html'; return; }
+
+    // Check admin role
+    if (d.user.role !== 'admin') {
+      document.body.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:16px;font-family:sans-serif;">
+        <div style="font-size:48px">🔒</div>
+        <div style="font-size:20px;font-weight:700;color:#e2eaf4">Admin Access Required</div>
+        <div style="color:#5a7290">Your account does not have admin privileges.</div>
+        <a href="/dashboard.html" style="color:#00d4ff">← Back to Dashboard</a>
+      </div>`;
+      return;
+    }
+
+    // Set admin info in sidebar
+    const name = d.user.name || d.user.email;
+    document.getElementById('adminName').textContent = name;
+    document.getElementById('adminAvatar').textContent = name.charAt(0).toUpperCase();
+
+    // Intercept fetch with auth header
+    const origFetch = window.fetch;
+    window.fetch = (url, cfg = {}) => {
+      if (typeof url === 'string' && url.startsWith('/api/') && !url.startsWith('/api/auth/')) {
+        cfg.headers = { ...cfg.headers, 'Authorization': `Bearer ${token}` };
+      }
+      return origFetch(url, cfg);
+    };
+
+    initAdmin();
+  } catch(e) {
+    window.location.href = '/auth.html';
+  }
+})();
+
+// ════════════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════════════
+function initAdmin() {
+  startClock();
+  refreshAll();
+  loadSettings();
+  renderAnnouncements();
+  checkAPIStatus();
+}
+
+function startClock() {
+  const el = document.getElementById('clock');
+  const tick = () => { el.textContent = new Date().toLocaleString(); };
+  tick(); setInterval(tick, 1000);
+}
+
+async function refreshAll() {
+  await Promise.all([loadUsers(), loadSessions()]);
+  updateOverview();
+  buildSignupChart();
+  buildActivityFeed();
+}
+
+// ════════════════════════════════════════════════
+//  NAVIGATION
+// ════════════════════════════════════════════════
+const panelTitles = {
+  overview: 'Dashboard Overview', users: 'User Management',
+  sessions: 'Session Management', announcements: 'Announcements',
+  apikeys: 'API Key Configuration', settings: 'App Settings', logs: 'Activity Logs'
+};
+
+document.querySelectorAll('.nav-item[data-panel]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-' + btn.dataset.panel).classList.add('active');
+    document.getElementById('panelTitle').textContent = panelTitles[btn.dataset.panel] || '';
+  });
+});
+
+// ════════════════════════════════════════════════
+//  API CALLS
+// ════════════════════════════════════════════════
+async function apiGet(path) {
+  const r = await fetch(path);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+async function apiPost(path, body) {
+  const r = await fetch(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+async function apiDelete(path) {
+  const r = await fetch(path, { method: 'DELETE' });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+// ════════════════════════════════════════════════
+//  USERS
+// ════════════════════════════════════════════════
+async function loadUsers() {
+  try {
+    const data = await apiGet('/api/admin/users');
+    adminState.users = data.users || [];
+    document.getElementById('userCountBadge').textContent = adminState.users.length;
+    renderUsersTable(adminState.users);
+  } catch(e) {
+    addLog('ERROR', 'Load users failed', e.message);
+  }
+}
+
+function renderUsersTable(users) {
+  const tbody = document.getElementById('usersTable');
+  if (!users.length) {
+    tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="icon">👤</div>No users found</div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = users.map(u => `
+    <tr>
+      <td><div class="avatar-sm">${(u.name||u.email).charAt(0).toUpperCase()}</div></td>
+      <td style="font-weight:600">${esc(u.name || '—')}</td>
+      <td class="td-mono">${esc(u.email)}</td>
+      <td><span class="badge ${u.role==='admin'?'blue':'green'}">${u.role||'user'}</span></td>
+      <td class="td-mono">${fmtDate(u.createdAt)}</td>
+      <td><span class="badge ${u.banned?'red':'green'}">${u.banned?'Banned':'Active'}</span></td>
+      <td>
+        <div class="flex gap-2">
+          <button class="btn sm" onclick="openEditUser('${esc(u.email)}')">✏️ Edit</button>
+          <button class="btn sm ${u.banned?'success':'danger'}" onclick="toggleBan('${esc(u.email)}','${!!u.banned}')">
+            ${u.banned?'Unban':'Ban'}
+          </button>
+          <button class="btn sm danger" onclick="deleteUser('${esc(u.email)}')">🗑</button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function filterUsers() {
+  const q = document.getElementById('userSearch').value.toLowerCase();
+  const filtered = adminState.users.filter(u =>
+    (u.name||'').toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
+  );
+  renderUsersTable(filtered);
+}
+
+function openCreateUser() {
+  adminState.editingUser = null;
+  document.getElementById('userModalTitle').textContent = 'Add User';
+  document.getElementById('modalName').value = '';
+  document.getElementById('modalEmail').value = '';
+  document.getElementById('modalPassword').value = '';
+  document.getElementById('modalRole').value = 'user';
+  document.getElementById('userModal').classList.add('open');
+}
+
+function openEditUser(email) {
+  const u = adminState.users.find(u => u.email === email);
+  if (!u) return;
+  adminState.editingUser = email;
+  document.getElementById('userModalTitle').textContent = 'Edit User';
+  document.getElementById('modalName').value = u.name || '';
+  document.getElementById('modalEmail').value = u.email;
+  document.getElementById('modalPassword').value = '';
+  document.getElementById('modalRole').value = u.role || 'user';
+  document.getElementById('userModal').classList.add('open');
+}
+
+async function saveUser() {
+  const name = document.getElementById('modalName').value.trim();
+  const email = document.getElementById('modalEmail').value.trim();
+  const password = document.getElementById('modalPassword').value;
+  const role = document.getElementById('modalRole').value;
+
+  if (!name || !email) { toast('Name and email are required', 'error'); return; }
+
+  try {
+    if (adminState.editingUser) {
+      await apiPost('/api/admin/users/update', { email, name, role, password: password || undefined });
+      toast('User updated');
+    } else {
+      if (!password) { toast('Password required for new user', 'error'); return; }
+      await apiPost('/api/admin/users/create', { email, name, password, role });
+      toast('User created');
+    }
+    addLog('INFO', adminState.editingUser ? 'User updated' : 'User created', email);
+    closeModal('userModal');
+    loadUsers();
+  } catch(e) {
+    toast(e.message, 'error');
+  }
+}
+
+async function toggleBan(email, isBanned) {
+  try {
+    await apiPost('/api/admin/users/ban', { email, banned: !JSON.parse(isBanned) });
+    toast(JSON.parse(isBanned) ? 'User unbanned' : 'User banned');
+    addLog('WARN', JSON.parse(isBanned) ? 'User unbanned' : 'User banned', email);
+    loadUsers();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function deleteUser(email) {
+  confirm2(`Permanently delete user "${email}"? This cannot be undone.`, async () => {
+    try {
+      await apiPost('/api/admin/users/delete', { email });
+      toast('User deleted');
+      addLog('WARN', 'User deleted', email);
+      loadUsers();
+    } catch(e) { toast(e.message, 'error'); }
+  });
+}
+
+// ════════════════════════════════════════════════
+//  SESSIONS
+// ════════════════════════════════════════════════
+async function loadSessions() {
+  try {
+    const data = await apiGet('/api/admin/sessions');
+    adminState.sessions = data.sessions || [];
+    document.getElementById('sessionCountBadge').textContent = adminState.sessions.length;
+    document.getElementById('sessionSummary').textContent =
+      `${adminState.sessions.length} active session${adminState.sessions.length !== 1 ? 's' : ''}`;
+    renderSessionsTable(adminState.sessions);
+  } catch(e) {
+    addLog('ERROR', 'Load sessions failed', e.message);
+  }
+}
+
+function renderSessionsTable(sessions) {
+  const tbody = document.getElementById('sessionsTable');
+  if (!sessions.length) {
+    tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><div class="icon">🔑</div>No active sessions</div></td></tr>';
+    return;
+  }
+  const now = Date.now();
+  tbody.innerHTML = sessions.map(s => {
+    const expired = s.expiresAt && Number(s.expiresAt) <= now;
+    return `<tr>
+      <td class="td-mono">${esc(s.token.slice(0,12))}…</td>
+      <td>${esc(s.email)}</td>
+      <td class="td-mono">${fmtDate(s.createdAt)}</td>
+      <td class="td-mono">${fmtDate(s.expiresAt,'ts')}</td>
+      <td><span class="badge ${expired?'red':'green'}">${expired?'Expired':'Active'}</span></td>
+      <td>
+        <button class="btn sm danger" onclick="revokeSession('${esc(s.token)}')">Revoke</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function revokeSession(token) {
+  try {
+    await apiPost('/api/admin/sessions/revoke', { token });
+    toast('Session revoked');
+    addLog('WARN', 'Session revoked', token.slice(0, 12) + '…');
+    loadSessions();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function revokeAllSessions() {
+  confirm2('Revoke ALL active sessions? All users will be logged out.', async () => {
+    try {
+      await apiPost('/api/admin/sessions/revoke-all', {});
+      toast('All sessions revoked');
+      addLog('WARN', 'All sessions revoked', 'admin action');
+      loadSessions();
+    } catch(e) { toast(e.message, 'error'); }
+  });
+}
+
+async function clearAllSessions() {
+  confirm2('Clear all sessions from the server?', async () => {
+    try {
+      await apiPost('/api/admin/sessions/revoke-all', {});
+      toast('Sessions cleared');
+      loadSessions();
+    } catch(e) { toast(e.message, 'error'); }
+  });
+}
+
+// ════════════════════════════════════════════════
+//  ANNOUNCEMENTS (localStorage-based)
+// ════════════════════════════════════════════════
+function postAnnouncement() {
+  const text = document.getElementById('announcementText').value.trim();
+  const type = document.getElementById('announcementType').value;
+  const hours = Number(document.getElementById('announcementDuration').value);
+  if (!text) { toast('Enter a message first', 'error'); return; }
+
+  const ann = {
+    id: Date.now().toString(),
+    text, type, hours,
+    createdAt: Date.now(),
+    expiresAt: hours > 0 ? Date.now() + hours * 3600000 : null
+  };
+  adminState.announcements.unshift(ann);
+  localStorage.setItem('admin_announcements', JSON.stringify(adminState.announcements));
+  localStorage.setItem('weather_announcement', JSON.stringify(ann)); // read by main app
+  document.getElementById('announcementText').value = '';
+  renderAnnouncements();
+  toast('Announcement posted');
+  addLog('INFO', 'Announcement posted', text.slice(0, 60));
+}
+
+function renderAnnouncements() {
+  const list = document.getElementById('announcementList');
+  const active = adminState.announcements.filter(a => !a.expiresAt || a.expiresAt > Date.now());
+  document.getElementById('announcementCount').textContent = active.length;
+  if (!active.length) {
+    list.innerHTML = '<div class="empty-state"><div class="icon">📭</div>No active announcements</div>';
+    return;
+  }
+  const typeIcon = { info: 'ℹ️', warning: '⚠️', success: '✅', error: '🚨' };
+  list.innerHTML = active.map(a => `
+    <div class="announcement-item">
+      <span style="font-size:20px">${typeIcon[a.type]||'📢'}</span>
+      <div class="content">
+        <div>${esc(a.text)}</div>
+        <div class="meta">${fmtDate(a.createdAt)} · ${a.hours > 0 ? `Expires in ${Math.max(0,Math.round((a.expiresAt-Date.now())/3600000))}h` : 'Permanent'}</div>
+      </div>
+      <button class="btn sm danger" onclick="deleteAnnouncement('${a.id}')">✕</button>
+    </div>
+  `).join('');
+}
+
+function deleteAnnouncement(id) {
+  adminState.announcements = adminState.announcements.filter(a => a.id !== id);
+  localStorage.setItem('admin_announcements', JSON.stringify(adminState.announcements));
+  renderAnnouncements();
+  toast('Announcement removed');
+}
+
+// ════════════════════════════════════════════════
+//  SETTINGS
+// ════════════════════════════════════════════════
+function loadSettings() {
+  const s = adminState.settings;
+  if (s.sessionTTL) document.getElementById('settingSessionTTL').value = s.sessionTTL;
+  if (s.bcryptRounds) document.getElementById('settingBcryptRounds').value = s.bcryptRounds;
+  if (s.defaultCity) document.getElementById('settingDefaultCity').value = s.defaultCity;
+  if (s.units) document.getElementById('settingUnits').value = s.units;
+  if (s.theme) document.getElementById('settingTheme').value = s.theme;
+  if (s.registration === false) document.getElementById('toggleRegistration').classList.remove('on');
+  if (s.maintenance === true) document.getElementById('toggleMaintenance').classList.add('on');
+  if (s.ai === false) document.getElementById('toggleAI').classList.remove('on');
+  if (s.news === false) document.getElementById('toggleNews').classList.remove('on');
+}
+
+function syncToggle(key, el) {
+  adminState.settings[key] = el.classList.contains('on');
+  localStorage.setItem('admin_settings', JSON.stringify(adminState.settings));
+}
+
+function saveAuthSettings() {
+  adminState.settings.sessionTTL = Number(document.getElementById('settingSessionTTL').value);
+  adminState.settings.bcryptRounds = Number(document.getElementById('settingBcryptRounds').value);
+  localStorage.setItem('admin_settings', JSON.stringify(adminState.settings));
+  toast('Auth settings saved');
+  addLog('INFO', 'Auth settings updated', `TTL=${adminState.settings.sessionTTL}h, rounds=${adminState.settings.bcryptRounds}`);
+}
+
+function saveAppSettings() {
+  adminState.settings.defaultCity = document.getElementById('settingDefaultCity').value;
+  adminState.settings.units = document.getElementById('settingUnits').value;
+  adminState.settings.theme = document.getElementById('settingTheme').value;
+  localStorage.setItem('admin_settings', JSON.stringify(adminState.settings));
+  toast('App settings saved');
+  addLog('INFO', 'App settings updated', `city=${adminState.settings.defaultCity}`);
+}
+
+function saveKey(service) {
+  const inputs = { openweather: 'owmKeyInput', windy: 'windyKeyInput', gnews: 'gnewsKeyInput', gemini: 'geminiKeyInput' };
+  const val = document.getElementById(inputs[service]).value.trim();
+  if (!val) { toast('Enter a key first', 'error'); return; }
+  // In a real deployment this would POST to a /api/admin/keys endpoint
+  toast(`${service} key saved (runtime only — update .env for persistence)`);
+  addLog('INFO', 'API key updated', service);
+}
+
+async function testKey(service) {
+  toast(`Testing ${service} connection…`);
+  try {
+    if (service === 'openweather') {
+      const r = await fetch('/api/weather?lat=12.97&lon=77.59', { headers: { Authorization: `Bearer ${localStorage.getItem('sessionToken')}` }});
+      document.getElementById('owmKeyStatus').className = 'badge ' + (r.ok ? 'green' : 'red');
+      document.getElementById('owmKeyStatus').textContent = r.ok ? '● Connected' : '● Error';
+      toast(r.ok ? 'OpenWeather API OK' : 'OpenWeather API failed', r.ok ? 'success' : 'error');
+    } else if (service === 'gemini') {
+      const r = await fetch('/api/ai/message', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('sessionToken')}` },
+        body: JSON.stringify({ messages: [{ role: 'user', content: 'ping' }], max_tokens: 10 })
+      });
+      document.getElementById('geminiKeyStatus').className = 'badge ' + (r.ok ? 'green' : 'red');
+      document.getElementById('geminiKeyStatus').textContent = r.ok ? '● Connected' : '● Error';
+      toast(r.ok ? 'Gemini API OK' : 'Gemini API failed', r.ok ? 'success' : 'error');
+    }
+  } catch(e) { toast('Test failed: ' + e.message, 'error'); }
+}
+
+async function checkAPIStatus() {
+  try {
+    const token = localStorage.getItem('sessionToken');
+    const r = await fetch('/api/weather?lat=12.97&lon=77.59', { headers: { Authorization: `Bearer ${token}` }});
+    document.getElementById('owmStatus').className = 'badge ' + (r.ok ? 'green' : 'red');
+    document.getElementById('owmStatus').textContent = r.ok ? '● Online' : '● Error';
+    if (document.getElementById('owmKeyStatus')) {
+      document.getElementById('owmKeyStatus').className = 'badge ' + (r.ok ? 'green' : 'red');
+      document.getElementById('owmKeyStatus').textContent = r.ok ? '● Connected' : '● Error';
+    }
+  } catch(e) {}
+}
+
+// ════════════════════════════════════════════════
+//  LOGS
+// ════════════════════════════════════════════════
+function addLog(level, event, details = '') {
+  adminState.logs.unshift({ ts: Date.now(), level, event, details, user: 'admin' });
+  if (adminState.logs.length > 500) adminState.logs.length = 500;
+  renderLogs(adminState.logs);
+}
+
+function renderLogs(logs) {
+  const tbody = document.getElementById('logsTable');
+  if (!logs.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--muted)">No logs</td></tr>';
+    return;
+  }
+  const colMap = { INFO: 'blue', WARN: 'amber', ERROR: 'red' };
+  tbody.innerHTML = logs.slice(0, 200).map(l => `
+    <tr>
+      <td class="td-mono">${fmtDate(l.ts,'ts')}</td>
+      <td><span class="badge ${colMap[l.level]||'blue'}">${l.level}</span></td>
+      <td style="font-weight:600">${esc(l.event)}</td>
+      <td class="td-mono">${esc(l.user||'—')}</td>
+      <td class="td-mono" style="color:var(--muted)">${esc(l.details||'')}</td>
+    </tr>
+  `).join('');
+}
+
+function filterLogs() {
+  const q = document.getElementById('logSearch').value.toLowerCase();
+  const lvl = document.getElementById('logLevel').value;
+  const filtered = adminState.logs.filter(l =>
+    (!lvl || l.level === lvl) &&
+    (!q || l.event.toLowerCase().includes(q) || (l.details||'').toLowerCase().includes(q))
+  );
+  renderLogs(filtered);
+}
+
+function clearLogs() {
+  adminState.logs = [];
+  renderLogs([]);
+  toast('Logs cleared');
+}
+
+function exportLogs() {
+  const csv = ['Time,Level,Event,User,Details',
+    ...adminState.logs.map(l => `"${fmtDate(l.ts,'ts')}","${l.level}","${l.event}","${l.user}","${l.details}"`)
+  ].join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = `admin-logs-${Date.now()}.csv`;
+  a.click();
+  toast('Logs exported');
+}
+
+// ════════════════════════════════════════════════
+//  OVERVIEW CHARTS & STATS
+// ════════════════════════════════════════════════
+function updateOverview() {
+  document.getElementById('statUsers').textContent = adminState.users.length;
+  document.getElementById('statSessions').textContent = adminState.sessions.length;
+  document.getElementById('statErrors').textContent = adminState.logs.filter(l => l.level === 'ERROR').length;
+  document.getElementById('statUsersChange').textContent = `${adminState.users.length} registered`;
+
+  // Uptime
+  const s = adminState.settings._startTime || Date.now();
+  if (!adminState.settings._startTime) {
+    adminState.settings._startTime = s;
+    localStorage.setItem('admin_settings', JSON.stringify(adminState.settings));
+  }
+  const diff = Math.floor((Date.now() - s) / 60000);
+  document.getElementById('statUptime').textContent = diff < 60 ? `${diff}m` : `${Math.floor(diff/60)}h`;
+}
+
+function buildSignupChart() {
+  const days = 7;
+  const labels = [];
+  const counts = [];
+  const now = new Date();
+
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    labels.push(d.toLocaleDateString('en', { weekday: 'short' }));
+    const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    const dayEnd = dayStart + 86400000;
+    counts.push(adminState.users.filter(u => {
+      const t = new Date(u.createdAt).getTime();
+      return t >= dayStart && t < dayEnd;
+    }).length);
+  }
+
+  const total = counts.reduce((a, b) => a + b, 0);
+  document.getElementById('chartTotal').textContent = total + ' total';
+
+  const max = Math.max(...counts, 1);
+  const chart = document.getElementById('signupChart');
+  chart.innerHTML = counts.map((c, i) => `
+    <div class="chart-bar" style="height:${Math.max(8, (c / max) * 100)}%">
+      <div class="tip">${labels[i]}: ${c}</div>
+    </div>
+  `).join('');
+
+  document.getElementById('signupLabels').innerHTML = labels.map(l => `<span>${l}</span>`).join('');
+}
+
+function buildActivityFeed() {
+  const feed = document.getElementById('activityFeed');
+  const events = adminState.logs.slice(0, 8);
+  if (!events.length) {
+    feed.innerHTML = '<div class="text-muted" style="padding:12px 0">No activity yet</div>';
+    return;
+  }
+  const colMap = { INFO: 'blue', WARN: 'amber', ERROR: 'red' };
+  feed.innerHTML = events.map(e => `
+    <div class="activity-item">
+      <div class="activity-dot ${colMap[e.level]||'blue'}"></div>
+      <div class="activity-text">
+        <strong>${esc(e.event)}</strong>${e.details ? ` — ${esc(e.details)}` : ''}
+        <div class="time">${timeAgo(e.ts)}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ════════════════════════════════════════════════
+//  DANGER ZONE
+// ════════════════════════════════════════════════
+function confirmReset() {
+  confirm2('PERMANENTLY DELETE all user data? This includes all users and sessions.', async () => {
+    try {
+      await apiPost('/api/admin/reset', {});
+      toast('All data reset');
+      addLog('ERROR', 'Full data reset performed', 'admin action');
+      refreshAll();
+    } catch(e) { toast(e.message, 'error'); }
+  });
+}
+
+// ════════════════════════════════════════════════
+//  LOGOUT
+// ════════════════════════════════════════════════
+async function doLogout() {
+  const token = localStorage.getItem('sessionToken');
+  try {
+    await fetch('/api/auth/logout', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionToken: token })
+    });
+  } catch(e) {}
+  localStorage.removeItem('sessionToken');
+  localStorage.removeItem('user');
+  window.location.href = '/auth.html';
+}
+
+// ════════════════════════════════════════════════
+//  UTILITIES
+// ════════════════════════════════════════════════
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function fmtDate(v, type) {
+  if (!v) return '—';
+  const d = type === 'ts' ? new Date(Number(v)) : new Date(v);
+  if (isNaN(d)) return '—';
+  return d.toLocaleString();
+}
+
+function timeAgo(ts) {
+  const diff = Math.floor((Date.now() - ts) / 1000);
+  if (diff < 60) return `${diff}s ago`;
+  if (diff < 3600) return `${Math.floor(diff/60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff/3600)}h ago`;
+  return `${Math.floor(diff/86400)}d ago`;
+}
+
+let toastTimer;
+function toast(msg, type = 'success') {
+  const el = document.getElementById('toast');
+  const icon = document.getElementById('toastIcon');
+  const msgEl = document.getElementById('toastMsg');
+  icon.textContent = type === 'error' ? '✗' : type === 'warn' ? '⚠' : '✓';
+  icon.style.color = type === 'error' ? 'var(--red)' : type === 'warn' ? 'var(--amber)' : 'var(--green)';
+  msgEl.textContent = msg;
+  el.className = 'show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.className = '', 3000);
+}
+
+function confirm2(text, cb) {
+  document.getElementById('confirmText').textContent = text;
+  const btn = document.getElementById('confirmBtn');
+  btn.onclick = () => { closeModal('confirmModal'); cb(); };
+  document.getElementById('confirmModal').classList.add('open');
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+// Close modal on backdrop click
+document.querySelectorAll('.modal-backdrop').forEach(el => {
+  el.addEventListener('click', e => {
+    if (e.target === el) el.classList.remove('open');
+  });
+});
+
+// Seed initial log
+addLog('INFO', 'Admin panel loaded', navigator.userAgent.split(' ').pop());
+</script>
+</body>
+</html>

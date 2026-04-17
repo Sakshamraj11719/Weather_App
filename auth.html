@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Weather Dashboard - Login</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --bg-grad1: #0ea5e920;
+      --bg-grad2: #22d3ee22;
+      --card: #0b1220;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --accent: #22d3ee;
+      --accent-2: #60a5fa;
+      --border: #1f2937;
+      --error: #ef4444;
+      --success: #10b981;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+      background: radial-gradient(1200px 600px at 80% -10%, var(--bg-grad1), transparent 60%),
+                  radial-gradient(1000px 600px at -10% 110%, var(--bg-grad2), transparent 60%),
+                  var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 420px;
+    }
+
+    .logo {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    .logo-icon {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 16px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 48px;
+    }
+
+    .logo-text {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .logo-subtitle {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 40px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 32px;
+      background: var(--bg);
+      padding: 4px;
+      border-radius: 12px;
+    }
+
+    .tab {
+      flex: 1;
+      padding: 12px;
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      font-weight: 600;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .tab.active {
+      background: var(--card);
+      color: var(--text);
+    }
+
+    .tab:hover:not(.active) {
+      color: var(--text);
+    }
+
+    .form {
+      display: none;
+    }
+
+    .form.active {
+      display: block;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: var(--text);
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 12px 16px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      color: var(--text);
+      font-size: 16px;
+      outline: none;
+      transition: all 0.2s;
+    }
+
+    .form-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.1);
+    }
+
+    .form-input::placeholder {
+      color: var(--muted);
+    }
+
+    .submit-btn {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      border: none;
+      border-radius: 12px;
+      color: white;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .submit-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(34, 211, 238, 0.3);
+    }
+
+    .submit-btn:active {
+      transform: translateY(0);
+    }
+
+    .submit-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .message {
+      padding: 12px 16px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      font-size: 14px;
+      display: none;
+    }
+
+    .message.show {
+      display: block;
+    }
+
+    .message.error {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid var(--error);
+      color: var(--error);
+    }
+
+    .message.success {
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid var(--success);
+      color: var(--success);
+    }
+
+    .divider {
+      text-align: center;
+      margin: 24px 0;
+      position: relative;
+    }
+
+    .divider::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .divider span {
+      position: relative;
+      background: var(--card);
+      padding: 0 16px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .demo-info {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      margin-top: 20px;
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    .demo-info strong {
+      color: var(--text);
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-10px); }
+      75% { transform: translateX(10px); }
+    }
+
+    .shake {
+      animation: shake 0.3s;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">
+      <div class="logo-icon">⛅</div>
+      <div class="logo-text">Weather Dashboard</div>
+      <div class="logo-subtitle">Your personal weather companion</div>
+    </div>
+
+    <div class="card">
+      <div class="tabs">
+        <button class="tab active" data-tab="login">Login</button>
+        <button class="tab" data-tab="signup">Sign Up</button>
+      </div>
+
+      <div id="message" class="message"></div>
+
+      <!-- Login Form -->
+      <form id="loginForm" class="form active">
+        <div class="form-group">
+          <label class="form-label" for="loginEmail">Email</label>
+          <input 
+            type="email" 
+            id="loginEmail" 
+            class="form-input" 
+            placeholder="your@email.com"
+            required
+          />
+          <span class="field-hint" style="font-size:12px;margin-top:4px;display:block;min-height:16px;"></span>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="loginPassword">Password</label>
+          <input 
+            type="password" 
+            id="loginPassword" 
+            class="form-input" 
+            placeholder="••••••••"
+            required
+          />
+        </div>
+
+        <button type="submit" class="submit-btn">Login</button>
+      </form>
+
+      <!-- Signup Form -->
+      <form id="signupForm" class="form">
+        <div class="form-group">
+          <label class="form-label" for="signupName">Full Name</label>
+          <input 
+            type="text" 
+            id="signupName" 
+            class="form-input" 
+            placeholder="John Doe"
+            required
+          />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="signupEmail">Email</label>
+          <input 
+            type="email" 
+            id="signupEmail" 
+            class="form-input" 
+            placeholder="your@email.com"
+            required
+          />
+          <span class="field-hint" style="font-size:12px;margin-top:4px;display:block;min-height:16px;"></span>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="signupPassword">Password</label>
+          <input 
+            type="password" 
+            id="signupPassword" 
+            class="form-input" 
+            placeholder="At least 6 characters"
+            required
+            minlength="6"
+          />
+        </div>
+
+        <button type="submit" class="submit-btn">Create Account</button>
+      </form>
+
+      <div class="demo-info">
+        <strong>✉️ Note:</strong> After signing up, you'll receive a 6-digit verification code by email. Check your inbox (and spam folder).
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Email & form validation
+    function isValidEmail(email) {
+      const re = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,6}$/;
+      if (!re.test(email)) return false;
+      const [local, domain] = email.split('@');
+      if (!local || !domain || !domain.includes('.')) return false;
+      const parts = domain.split('.');
+      return parts[parts.length - 1].length >= 2 && parts[0].length >= 1;
+    }
+
+    function validateEmailField(input) {
+      const val = input.value.trim();
+      const hint = input.parentElement.querySelector('.field-hint');
+      if (!val) {
+        input.style.borderColor = '';
+        if (hint) hint.textContent = '';
+        return false;
+      }
+      if (!isValidEmail(val)) {
+        input.style.borderColor = 'var(--error)';
+        if (hint) hint.textContent = '⚠ Enter a valid email like you@gmail.com';
+        return false;
+      }
+      input.style.borderColor = 'var(--success)';
+      if (hint) hint.textContent = '✓ Looks good!';
+      return true;
+    }
+
+    // Attach real-time validation to all email inputs
+    document.querySelectorAll('input[type="email"]').forEach(input => {
+      input.addEventListener('blur', () => validateEmailField(input));
+      input.addEventListener('input', () => {
+        if (input.style.borderColor === 'var(--error)') validateEmailField(input);
+      });
+    });
+
+    // Tab switching
+    const tabs = document.querySelectorAll('.tab');
+    const forms = document.querySelectorAll('.form');
+    const messageEl = document.getElementById('message');
+
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        const targetTab = tab.dataset.tab;
+        
+        tabs.forEach(t => t.classList.remove('active'));
+        forms.forEach(f => f.classList.remove('active'));
+        
+        tab.classList.add('active');
+        document.getElementById(`${targetTab}Form`).classList.add('active');
+        
+        hideMessage();
+      });
+    });
+
+    // Message functions
+    function showMessage(message, type = 'error') {
+      messageEl.textContent = message;
+      messageEl.className = `message show ${type}`;
+      
+      if (type === 'error') {
+        messageEl.classList.add('shake');
+        setTimeout(() => messageEl.classList.remove('shake'), 300);
+      }
+    }
+
+    function hideMessage() {
+      messageEl.className = 'message';
+    }
+
+    // Login form
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const emailInput = document.getElementById('loginEmail');
+      const email = emailInput.value.trim();
+      const password = document.getElementById('loginPassword').value;
+      const btn = e.target.querySelector('.submit-btn');
+
+      if (!isValidEmail(email)) {
+        validateEmailField(emailInput);
+        showMessage('Please enter a valid email address (e.g. you@gmail.com)');
+        return;
+      }
+      
+      btn.disabled = true;
+      btn.textContent = 'Logging in...';
+      hideMessage();
+
+      try {
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          localStorage.setItem('sessionToken', data.sessionToken);
+          localStorage.setItem('user', JSON.stringify(data.user));
+          showMessage('Login successful! Redirecting...', 'success');
+          setTimeout(() => { window.location.href = '/dashboard.html'; }, 1000);
+        } else if (data.requiresVerification) {
+          showMessage('Please verify your email. A new code has been sent.', 'error');
+          setTimeout(() => {
+            window.location.href = '/verify-email.html?email=' + encodeURIComponent(data.email);
+          }, 1500);
+        } else {
+          showMessage(data.message);
+        }
+      } catch (error) {
+        showMessage('Network error. Please try again.');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Login';
+      }
+    });
+
+    // Signup form
+    document.getElementById('signupForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const name = document.getElementById('signupName').value;
+      const emailInput = document.getElementById('signupEmail');
+      const email = emailInput.value.trim();
+      const password = document.getElementById('signupPassword').value;
+      const btn = e.target.querySelector('.submit-btn');
+
+      if (!isValidEmail(email)) {
+        validateEmailField(emailInput);
+        showMessage('Please enter a valid email address (e.g. you@gmail.com)');
+        return;
+      }
+      
+      btn.disabled = true;
+      btn.textContent = 'Creating account...';
+      hideMessage();
+
+      try {
+        const response = await fetch('/api/auth/signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, email, password })
+        });
+
+        const data = await response.json();
+
+        if (data.success && data.requiresVerification) {
+          showMessage('Account created! Redirecting to email verification...', 'success');
+          setTimeout(() => {
+            window.location.href = '/verify-email.html?email=' + encodeURIComponent(data.email);
+          }, 1000);
+        } else if (data.success) {
+          localStorage.setItem('sessionToken', data.sessionToken);
+          localStorage.setItem('user', JSON.stringify(data.user));
+          showMessage('Account created! Redirecting...', 'success');
+          setTimeout(() => { window.location.href = '/dashboard.html'; }, 1000);
+        } else {
+          showMessage(data.message);
+        }
+      } catch (error) {
+        showMessage('Network error. Please try again.');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Create Account';
+      }
+    });
+
+    // Check if already logged in
+    const sessionToken = localStorage.getItem('sessionToken');
+    if (sessionToken) {
+      // Verify session is still valid
+      fetch('/api/auth/check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionToken })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.authenticated) {
+          window.location.href = '/dashboard.html';
+        }
+      })
+      .catch(() => {
+        // Session invalid, stay on login page
+      });
+    }
+  </script>
+</body>
+</html>
