@@ -1,4 +1,4 @@
-# Weather_App
+# Weather-App
 
 weather-app/
 │
